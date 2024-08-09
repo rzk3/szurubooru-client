@@ -1,0 +1,7 @@
+[package]
+name = "szurubooru-integration-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+szurubooru-client = { version = "0.1.0", path = "../szurubooru-client" }
