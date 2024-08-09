@@ -5,7 +5,7 @@ use base64::{engine::general_purpose::STANDARD, Engine as _};
 use reqwest::{
     header::{HeaderMap, ACCEPT, AUTHORIZATION},
     multipart::{Form, Part},
-    Client, ClientBuilder, Method, RequestBuilder,
+    Client, ClientBuilder, Method, RequestBuilder, Response,
 };
 use serde::{de::DeserializeOwned, Serialize};
 use sha1::{Digest, Sha1};
@@ -33,7 +33,7 @@ impl SzurubooruClient {
     ///
     /// Construct a new `SzurubooruClient` using a username and token.
     ///
-    /// * `host` - The host to connect to, including `http` or `https`. Any path fragments will
+    /// * `host` - The host to connect to, including `http` or `https`. Any trailing slashes will
     ///             be stripped
     /// * `username` - The username to authenticate as
     /// * `token` - The token used to authenticate as `username`
@@ -118,30 +118,88 @@ impl SzurubooruClient {
     }
 
     /// Construct a new request using the existing client auth and base URL
+    /// All requests start with the [SzurubooruClient] struct.
+    /// The (request)[SzurubooruClient::request],
+    /// (with_fields)[SzurubooruClient::fields],
+    /// (limit)[SzurubooruClient::limit] and
+    /// (offset)[SzurubooruClient::offset] methods all return a [SzurubooruRequest] struct that will
+    /// enable you to actually make the requests.
+    /// ```no_run
+    /// # use szurubooru_client::SzurubooruClient;
+    /// # async {
+    /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
+    /// let new_request = client.request();
+    /// let tag_categories = new_request.list_tag_categories().await;
+    /// # }
+    /// ```
     pub fn request(&self) -> SzurubooruRequest {
         SzurubooruRequest::new(self)
     }
 
     /// Construct a new request while selecting only the given fields
-    pub fn with_fields<'a>(&'a self, fields: &'a Vec<String>) -> SzurubooruRequest {
-        self.request().fields(fields)
+    /// The Szurubooru API supports selecting a subset of fields for a given resource.
+    /// Most resource (models)[szurubooru_client::models] have [Option] fields because of that.
+    /// The default is to return all fields for a given resource.
+    /// See [here](https://github.com/rr-/szurubooru/blob/master/doc/API.md#field-selecting) for
+    /// more details
+    ///
+    /// For example, to select only the `version`, `id` and `content_url` fields of a
+    /// (PostResource)[szurubooru_client::models::PostResource]
+    /// ```no_run
+    /// # use szurubooru_client::SzurubooruClient;
+    /// # async {
+    /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
+    /// let new_request = client.request().with_fields(vec!["version", "id", "content_url"]);
+    /// # }
+    /// ```
+    pub fn with_fields<'a>(&'a self, fields: Vec<&'a str>) -> SzurubooruRequest {
+        self.request().with_fields(fields)
     }
 
     /// Construct a new request with the given limit
-    pub fn limit(&self, limit: u32) -> SzurubooruRequest {
-        self.request().limit(limit)
+    /// The Szurubooru API supports limiting the number of resources returned for Paginated
+    /// API endpoints.
+    ///
+    /// For example, to limit the number of pools returned by (list_pools)[SzurubooruRequest::list_pools]
+    /// ```no_run
+    /// # use szurubooru_client::SzurubooruClient;
+    /// # async {
+    /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
+    /// // Limit the number of results per page to 10
+    /// let pools_result = client.with_limit(10)
+    ///                         .list_pools(None)
+    ///                         .await;
+    /// # }
+    /// ```
+    pub fn with_limit(&self, limit: u32) -> SzurubooruRequest {
+        self.request().with_limit(limit)
     }
 
     /// Construct a new request starting at the given offset
-    pub fn offset(&self, offset: u32) -> SzurubooruRequest {
-        self.request().offset(offset)
+    /// The Szurubooru API supports offsetting the results returned from Paginated API
+    /// endpoints. Use this offset in combination with the limit to page through
+    /// large result sets.
+    ///
+    /// For example, to offset the list of pools returned by (list_pools)[SzurubooruRequest::list_pools]
+    /// ```no_run
+    /// # use szurubooru_client::SzurubooruClient;
+    /// # async {
+    /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
+    /// // Skip the first ten pools in the list
+    /// let pools_result = client.with_offset(10)
+    ///                         .list_pools(None)
+    ///                         .await;
+    /// # }
+    /// ```
+    pub fn with_offset(&self, offset: u32) -> SzurubooruRequest {
+        self.request().with_offset(offset)
     }
 }
 
 #[derive(Debug)]
 /// A type that represents a single Szurubooru request.
 pub struct SzurubooruRequest<'a> {
-    fields: Option<&'a Vec<String>>,
+    fields: Option<Vec<&'a str>>,
     limit: Option<u32>,
     offset: Option<u32>,
     client: &'a SzurubooruClient,
@@ -158,25 +216,63 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Select which fields to return from the query.
-    /// Most of the fields in [models] are [Option]s because they can potentially be omitted
-    /// using this method.
+    /// The Szurubooru API supports selecting a subset of fields for a given resource.
+    /// Most resource (models)[szurubooru_client::models] have [Option] fields because of that.
+    /// The default is to return all fields for a given resource.
     /// See [here](https://github.com/rr-/szurubooru/blob/master/doc/API.md#field-selecting) for
     /// more details
-    pub fn fields(mut self, fields: &'a Vec<String>) -> Self {
+    ///
+    /// For example, to select only the `version`, `id` and `content_url` fields of a
+    /// (PostResource)[szurubooru_client::models::PostResource]
+    /// ```no_run
+    /// # use szurubooru_client::SzurubooruClient;
+    /// # async {
+    /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
+    /// let new_request = client.request().with_fields(vec!["version", "id", "content_url"]);
+    /// # }
+    /// ```
+    pub fn with_fields(mut self, fields: Vec<&'a str>) -> Self {
         self.fields = Some(fields);
         self
     }
 
-    /// Limit the number of returned results. Only applies to endpoints that return multiple
-    /// records
-    pub fn limit(mut self, limit: u32) -> Self {
+    /// Limit the number of returned results
+    /// The Szurubooru API supports limiting the number of resources returned for Paginated
+    /// API endpoints.
+    ///
+    /// For example, to limit the number of pools returned by (list_pools)[SzurubooruRequest::list_pools]
+    /// ```no_run
+    /// # use szurubooru_client::SzurubooruClient;
+    /// # async {
+    /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
+    /// // Limit the number of results per page to 10
+    /// let pools_result = client.with_limit(10)
+    ///                         .list_pools(None)
+    ///                         .await;
+    /// # }
+    /// ```
+    pub fn with_limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
         self
     }
 
-    /// Skip a certain number of records. Only applies to endpoints that return
-    /// [PagedSearchResults](models::PagedSearchResult)
-    pub fn offset(mut self, offset: u32) -> Self {
+    /// Skip a certain number of records
+    /// The Szurubooru API supports offsetting the results returned from Paginated API
+    /// endpoints. Use this offset in combination with the limit to page through
+    /// large result sets.
+    ///
+    /// For example, to offset the list of pools returned by (list_pools)[SzurubooruRequest::list_pools]
+    /// ```no_run
+    /// # use szurubooru_client::SzurubooruClient;
+    /// # async {
+    /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
+    /// // Skip the first ten pools in the list
+    /// let pools_result = client.with_offset(10)
+    ///                         .list_pools(None)
+    ///                         .await;
+    /// # }
+    /// ```
+    pub fn with_offset(mut self, offset: u32) -> Self {
         self.offset = Some(offset);
         self
     }
@@ -200,7 +296,7 @@ impl<'a> SzurubooruRequest<'a> {
             qpm.append_pair("query", &query_string);
         }
 
-        if let Some(fields) = self.fields {
+        if let Some(fields) = &self.fields {
             let mut qpm = req_url.query_pairs_mut();
             let fields_list = fields.join(",");
             qpm.append_pair("fields", &fields_list);
@@ -593,6 +689,41 @@ impl<'a> SzurubooruRequest<'a> {
             .await
     }
 
+    async fn get_post_content(&self, post_id: u32) -> SzurubooruResult<Response> {
+        let post_resource = self.get_post(post_id).await?;
+
+        let req = self.prep_request(Method::GET, post_resource.content_url.unwrap(), None);
+        let request = req
+            .build()
+            .map_err(SzurubooruClientError::RequestBuilderError)?;
+
+        self.client
+            .client
+            .execute(request)
+            .await
+            .map_err(SzurubooruClientError::RequestError)
+    }
+
+    ///Downloads the given post ID's image as a stream of bytes
+    pub async fn get_post_content_bytestream(
+        &self,
+        post_id: u32,
+    ) -> SzurubooruResult<
+        impl futures_util::Stream<Item = std::result::Result<bytes::Bytes, reqwest::Error>>,
+    > {
+        let content_response = self.get_post_content(post_id).await?;
+        Ok(content_response.bytes_stream())
+    }
+
+    ///Downloads the given post ID's image as a (Bytes)[bytes::Bytes] struct
+    pub async fn get_post_content_bytes(&self, post_id: u32) -> SzurubooruResult<bytes::Bytes> {
+        let content_response = self.get_post_content(post_id).await?;
+        content_response
+            .bytes()
+            .await
+            .map_err(SzurubooruClientError::RequestError)
+    }
+
     /// Retrieves posts that look like the input image
     pub async fn reverse_search_file(
         &self,
@@ -653,21 +784,21 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Retrieves information about an existing post.
-    pub async fn get_post(&self, post_id: i32) -> SzurubooruResult<PostResource> {
+    pub async fn get_post(&self, post_id: u32) -> SzurubooruResult<PostResource> {
         let path = format!("/post/{post_id}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
 
     /// Retrieves information about posts that are before or after an existing post.
-    pub async fn get_around_post(&self, post_id: i32) -> SzurubooruResult<AroundPostResult> {
+    pub async fn get_around_post(&self, post_id: u32) -> SzurubooruResult<AroundPostResult> {
         let path = format!("/post/{post_id}/around");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
 
     /// Deletes existing post. Related posts and tags are kept.
-    pub async fn delete_post(&self, post_id: i32, version: u32) -> SzurubooruResult<()> {
+    pub async fn delete_post(&self, post_id: u32, version: u32) -> SzurubooruResult<()> {
         let path = format!("/post/{post_id}");
         let version_obj = ResourceVersion { version };
         self.do_request(Method::DELETE, &path, None, Some(&version_obj))
