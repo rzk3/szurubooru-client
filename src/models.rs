@@ -1,0 +1,925 @@
+//! Types that represent the various API objects returned by Szurubooru. Many of the `Resource`
+//! objects have all of their fields as [Option] types because the Server API supports field
+//! selection.
+//!
+//! See [here](https://github.com/rr-/szurubooru/blob/master/doc/API.md#field-selecting) for
+//! more information.
+
+use chrono::NaiveDateTime;
+use derive_builder::Builder;
+use serde::{Deserialize, Serialize};
+use strum_macros::AsRefStr;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+/// Enum used to represent something that's either `Left` or `Right`
+pub enum SzuruEither<L, R> {
+    /// Enum variant `Left`
+    Left(L),
+    /// Enum variant `Right`
+    Right(R),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+/// A result of search operation that doesn't involve paging
+pub struct UnpagedSearchResult<T> {
+    /// The total list of results
+    pub results: Vec<T>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+/// A result of search operation that involves paging
+///
+/// Use (offset)[crate::SzurubooruRequest::offset] and (limit)[crate::SzurubooruRequest::limit]
+/// to fetch the next page
+pub struct PagedSearchResult<T> {
+    /// The original query for the request
+    pub query: String,
+    /// The number of [T] to skip forward
+    pub offset: u32,
+    /// The maximum number of [T] to return
+    pub limit: u32,
+    /// The total number of [T] that match the [query](PagedSearchResult::query)
+    pub total: u32,
+    /// The results themselves
+    pub results: Vec<T>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+/// A [tag resource](TagResource) stripped down to `names`, `category` and `usages` fields.
+pub struct MicroTagResource {
+    /// The tag names and aliases
+    pub names: Vec<String>,
+    /// The category this tag belongs to
+    pub category: String,
+    /// The number of times this tag has been used
+    pub usages: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+/// To prevent problems with concurrent resource modification, Szurubooru implements optimistic
+/// locks using resource versions. Each modifiable resource has its version returned to the client
+/// with `GET` requests. At the same time, each `PUT` and `DELETE` request sent by the client
+/// must present the same version field to the server with value as it was given in `GET`.
+///
+/// For example, given `GET /post/1`, the server responds like this:
+///
+/// ```json
+/// {
+///     ...,
+///     "version": 2
+/// }
+/// ```
+///
+/// This means the client must then send `{"version": 2}` back too. If the client fails to do so,
+/// the server will reject the request notifying about missing parameter. If someone has edited the
+/// post in the meantime, the server will reject the request as well, in which case the client is
+/// encouraged to notify the user about the situation.
+pub struct ResourceVersion {
+    /// The version itself
+    pub version: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A single tag. Tags are used to let users search for posts.
+pub struct TagResource {
+    /// resource version. See [versioning](ResourceVersion)
+    pub version: u32,
+    /// a list of tag names (aliases). Tagging a post with any name will automatically assign
+    /// the first name from this list.
+    pub names: Option<Vec<String>>,
+    /// the name of the category the given tag belongs to
+    pub category: Option<String>,
+    /// a list of implied tags, serialized as micro tag resource. Implied tags are automatically
+    /// appended by the web client on usage.
+    pub implications: Option<Vec<MicroTagResource>>,
+    /// a list of suggested tags, serialized as micro tag resource. Suggested tags are shown to
+    /// the user by the web client on usage
+    pub suggestions: Option<Vec<MicroTagResource>>,
+    /// time the tag was created
+    pub creation_time: Option<NaiveDateTime>,
+    /// time the tag was edited
+    pub last_edit_time: Option<NaiveDateTime>,
+    /// the number of posts the tag was used in
+    pub usages: Option<u32>,
+    /// the tag description (instructions how to use, history etc.) The client should render
+    /// is as Markdown
+    pub description: Option<String>,
+}
+
+/// Creates or updates a tag using specified parameters. Names, suggestions and implications must
+/// match `tag_name_regex` from server's configuration. Category must exist and is the same as name
+/// field within <tag-category> resource. Suggestions and implications are optional. If specified
+/// implied tags or suggested tags do not exist yet, they will be automatically created. Tags
+/// created automatically have no implications, no suggestions, one name and their category is set
+/// to the first tag category found. If there are no tag categories established yet, an error
+/// will be thrown.
+///
+/// ```no_run
+/// use szurubooru_client::models::CreateUpdateTagBuilder;
+/// let cu_tag = CreateUpdateTagBuilder::default()
+///                 .version(1)
+///                 .names(vec!["foo_tag".to_string()])
+///                 .build()
+///                 .expect("A new tag");
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
+#[builder(setter(strip_option))]
+pub struct CreateUpdateTag {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// resource version. See [versioning](ResourceVersion)
+    pub version: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Tag names and aliases, must match `tag_name_regex` from the server's configuration
+    pub names: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Category that this tag belongs to. Must already exist
+    pub category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The tag description in Markdown format
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Tags that should be implied when this tag is used
+    pub implications: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Tags that should be suggested when this tag is used
+    pub suggestions: Option<Vec<String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+/// A single tag category. The primary purpose of tag categories is to distinguish certain tag
+/// types (such as characters, media type etc.), which improves user experience.
+pub struct TagCategoryResource {
+    /// resource version. See [versioning](ResourceVersion)
+    pub version: u32,
+    /// The name of the tag category
+    pub name: Option<String>,
+    /// The display color of the tag category
+    pub color: Option<String>,
+    /// How many tags is the given category used with
+    pub usages: Option<u32>,
+    /// The order in which tags with this category are displayed, ascending
+    pub order: Option<String>,
+    /// Whether the tag category is the default one
+    pub default: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
+#[builder(setter(into))]
+/// Used for creating or updating a Tag Category
+pub struct CreateUpdateTagCategory {
+    /// The name of the category to create
+    pub name: String,
+    /// The display color to use for the category
+    pub color: String,
+    /// The order in which tags with this category are displayed, ascending
+    pub order: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
+#[serde(rename_all = "camelCase")]
+#[builder(setter(into))]
+/// Removes source tag and merges all of its usages, suggestions and implications to the target tag.
+/// Other tag properties such as category and aliases do not get transferred and are discarded.
+pub struct MergeTags {
+    /// Version of the tag to remove
+    pub remove_version: u32,
+    /// The name of the tag to remove
+    pub remove: String,
+    /// The version of the tag to merge TO
+    pub merge_to_version: u32,
+    /// The name of the tag to merge TO
+    pub merge_to: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Lists siblings of given tag, e.g. tags that were used in the same posts as the given tag
+pub struct TagSibling {
+    /// The related tag
+    pub tag: TagResource,
+    /// How many times a given tag appears with the given tag
+    pub occurrences: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, AsRefStr)]
+/// The type of post
+pub enum PostType {
+    /// Image post
+    Image,
+    /// Animated post
+    Animation,
+    /// Alias of [Animation](PostType::Animation)
+    Animated,
+    /// Alias of [Animation](PostType::Animation)
+    Anim,
+    /// Flash animation
+    Flash,
+    /// Alias of [Flash](PostType::Flash)
+    Swf,
+    /// Video post of some type. See the mime type for more information
+    Video,
+    /// Webm container type
+    Webm,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, AsRefStr)]
+/// How SFW/NSFW the post is
+pub enum PostSafety {
+    /// Post is SFW
+    Safe,
+    /// Post is possibly NSFW
+    Sketchy,
+    /// Alias of (Sketchy)[PostSafety::Sketchy]
+    Questionable,
+    /// Post is NSFW
+    Unsafe,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A post resource stripped down to `id` and `thumbnailUrl` fields.
+pub struct MicroPostResource {
+    /// The ID of the post
+    pub id: u32,
+    /// The thumbnail URL of the post
+    pub thumbnail_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[doc(hidden)]
+pub(crate) struct PostId {
+    pub id: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A post resource
+pub struct PostResource {
+    /// Resource version. See [versioning](ResourceVersion)
+    pub version: Option<u32>,
+    /// The post identifier
+    pub id: Option<u32>,
+    /// Time the post was created
+    pub creation_time: Option<NaiveDateTime>,
+    /// Time the post was edited
+    pub last_edit_time: Option<NaiveDateTime>,
+    /// Whether the post is safe for work
+    pub safety: Option<PostSafety>,
+    #[serde(rename = "type")]
+    /// The type of the post
+    pub post_type: Option<PostType>,
+    /// Where the post was grabbed form, supplied by the user
+    pub source: Option<String>,
+    /// The SHA1 file checksum. Used in snapshots to signify changes of the post content
+    pub checksum: Option<String>,
+    #[serde(rename = "checksumMD5")]
+    /// The MD5 file checksum
+    pub checksum_md5: Option<String>,
+    /// The original width of the post content.
+    pub canvas_width: Option<u32>,
+    /// The original height of the post content.
+    pub canvas_height: Option<u32>,
+    /// Where the post content is located
+    pub content_url: Option<String>,
+    /// Where the post thumbnail is located
+    pub thumbnail_url: Option<String>,
+    /// Various flags such as whether the post is looped
+    pub flags: Option<Vec<String>>,
+    /// List of tags the post is tagged with
+    pub tags: Option<Vec<MicroTagResource>>,
+    /// A list of related posts.
+    pub relations: Option<Vec<MicroPostResource>>,
+    /// A list of post annotations
+    pub notes: Option<Vec<NoteResource>>,
+    /// Who created the post
+    pub user: Option<MicroUserResource>,
+    /// The collective score (+1/-1 rating) of the given post
+    pub score: Option<i32>,
+    /// Whether the authenticated user has given post in their favorites
+    pub own_favorite: Option<bool>,
+    /// How many tags the post is tagged with
+    pub tag_count: Option<u32>,
+    /// How many users have the post in their favorites
+    pub favorite_count: Option<u32>,
+    /// How many comments are filed under that post
+    pub comment_count: Option<u32>,
+    /// How many notes the post has
+    pub note_count: Option<u32>,
+    /// How many times has the post been featured
+    pub feature_count: Option<u32>,
+    /// How many posts are related to this post
+    pub relation_count: Option<u32>,
+    /// The last time the post was featured
+    pub last_feature_time: Option<NaiveDateTime>,
+    /// List of users who have favorited this post
+    pub favorited_by: Option<Vec<MicroUserResource>>,
+    /// Whether the post uses custom thumbnail
+    pub has_custom_thumbnail: Option<bool>,
+    /// Subsidiary to [type](PostResource::post_type), used to tell exact content format;
+    /// useful for `<video>` tags for instance
+    pub mime_type: Option<String>,
+    /// All the comments on the post
+    pub comment: Option<Vec<CommentResource>>,
+    /// The pools in which the post is a member
+    pub pools: Option<Vec<PoolResource>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
+#[builder(setter(into, strip_option))]
+#[serde(rename_all = "camelCase")]
+/// A `struct` used to create or update a post. For updating purposes
+/// the [version](CreateUpdatePost::version) field is required
+pub struct CreateUpdatePost {
+    /// Tags to use for this post. If specified tags do not exist yet, they will be automatically
+    /// created. Tags created automatically have no implications, no suggestions, one name and
+    /// their category is set to the first tag category found
+    pub tags: Vec<String>,
+    /// Required field, represents the SFW/NSFW state of a post
+    pub safety: PostSafety,
+    /// The origin of the post's content
+    pub source: Option<String>,
+    /// The IDs of related posts
+    pub relations: Option<Vec<u32>>,
+    /// Notes to be displayed on the post
+    pub notes: Option<Vec<NoteResource>>,
+    /// Flags relevant to the post. If omitted they will be auto-detected
+    pub flags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The URL to download the content from
+    pub content_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The token returned from
+    /// [upload_temporary_file](crate::SzurubooruRequest::upload_temporary_file)
+    pub content_token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Resource version. See [versioning](ResourceVersion)
+    pub version: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A token representing a temporary file upload
+pub struct TemporaryFileUpload {
+    /// Temporary upload token
+    token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
+#[builder(setter(into))]
+#[serde(rename_all = "camelCase")]
+/// Removes source post and merges all of its tags, relations, scores, favorites and comments to
+/// the target post. If replaceContent is set to true, content of the target post is replaced using
+/// the content of the source post; otherwise it remains unchanged. Source post properties such as
+/// its safety, source, whether to loop the video and other scalar values do not get transferred
+/// and are discarded.
+pub struct MergePost {
+    /// The version of the post to remove
+    pub remove_version: u32,
+    /// The ID of the post to remove
+    pub remove: u32,
+    /// The version of the post to merge TO
+    pub merge_to_version: u32,
+    /// The post ID of the post to merge TO
+    pub merge_to: u32,
+    /// Whether to replace the content
+    pub replace_content: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[doc(hidden)]
+pub struct RateResource {
+    pub score: i8,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A text annotation rendered on top of the post
+pub struct NoteResource {
+    /// Where to draw the annotation. Each point must have coordinates within 0 to 1.
+    /// For example, `[[0,0],[0,1],[1,1],[1,0]]` will draw the annotation on the whole post,
+    /// whereas `[[0,0],[0,0.5],[0.5,0.5],[0.5,0]]` will draw it inside the post's upper left
+    /// quarter
+    pub polygon: Vec<Vec<u8>>,
+    /// The annotation text, in Markdown format
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// The Rank of a given User
+pub enum UserRank {
+    /// Restricted, limited user
+    Restricted,
+    /// Regular user
+    Regular,
+    /// Power user
+    Power,
+    /// Moderator user
+    Moderator,
+    /// All-powerful Administrator
+    Administrator,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// The kind of User Avatar
+pub enum UserAvatarStyle {
+    /// Automatically-generated Gravatar
+    Gravatar,
+    /// Manually updated avatar
+    Manual,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A single user
+pub struct UserResource {
+    /// Resource version. See [versioning](ResourceVersion)
+    pub version: Option<u32>,
+    /// The user's username
+    pub name: Option<String>,
+    /// The user email. It is available only if the request is authenticated by the same user,
+    /// or the authenticated user can change the email. If it's unavailable, the server returns
+    /// `false`. If the user hasn't specified an email, the server returns [None](Option::None)
+    pub email: Option<SzuruEither<String, bool>>,
+    /// The user rank, which effectively affects their privileges
+    pub rank: Option<UserRank>,
+    #[serde(rename = "last-login-time")]
+    /// The last login time
+    pub last_login_time: Option<NaiveDateTime>,
+    #[serde(rename = "creation-time")]
+    /// The user registration time
+    pub creation_time: Option<NaiveDateTime>,
+    /// How to render the user avatar
+    pub avatar_style: Option<UserAvatarStyle>,
+    /// The URL to the avatar
+    pub avatar_url: Option<String>,
+    /// Number of comments
+    #[serde(rename = "comment-count")]
+    pub comment_count: Option<u32>,
+    /// Number of uploaded posts
+    #[serde(rename = "uploaded-post-count")]
+    pub uploaded_post_count: Option<u32>,
+    /// Number of liked posts. It is available only if the request is authenticated by the same
+    /// user. If it's unavailable, the server returns `false`
+    #[serde(rename = "liked-post-count")]
+    pub liked_post_count: Option<SzuruEither<u32, bool>>,
+    /// Number of disliked posts. It is available only if the request is authenticated by the same
+    /// user. If it's unavailable, the server returns `false`.
+    #[serde(rename = "disliked-post-count")]
+    pub disliked_post_count: Option<SzuruEither<u32, bool>>,
+    /// Number of favorited posts
+    #[serde(rename = "favorite-post-count")]
+    pub favorite_post_count: Option<SzuruEither<u32, bool>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
+#[builder(setter(into, strip_option))]
+#[serde(rename_all = "camelCase")]
+/// `struct` used to create or update a user resource. The version field is only used when
+/// updating an existing resource
+pub struct CreateUpdateUser {
+    /// Resource version. See [versioning](ResourceVersion)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<u32>,
+    /// The username
+    pub name: Option<String>,
+    /// The user's password
+    pub password: Option<String>,
+    /// The user's desired rank, if not given will default to `default_rank` in the server's
+    /// configuration
+    pub rank: Option<UserRank>,
+    /// The user avatar style, Gravatar or Manual
+    pub avatar_style: Option<UserAvatarStyle>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A user resource stripped down to `name` and `avatarUrl` fields
+pub struct MicroUserResource {
+    /// The username
+    pub name: String,
+    /// The user's avatar URL
+    pub avatar_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+/// A single user token
+pub struct UserAuthTokenResource {
+    /// A micro user resource
+    pub user: Option<MicroUserResource>,
+    /// The token that can be used to authenticate the user.
+    pub token: Option<String>,
+    /// A note that describes the token
+    pub note: Option<String>,
+    /// Whether the token is still valid for authentication
+    pub enabled: Option<bool>,
+    /// Time when the token expires
+    pub expiration_time: Option<NaiveDateTime>,
+    /// Resource version. See [versioning](ResourceVersion)
+    pub version: Option<u32>,
+    /// time the user token was created
+    pub creation_time: Option<NaiveDateTime>,
+    /// time the user token was edited
+    pub last_edit_time: Option<NaiveDateTime>,
+    /// the last time this token was used
+    pub last_usage_time: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
+#[builder(setter(into, strip_option))]
+#[serde(rename_all = "kebab-case")]
+/// `struct` to create or update a UserAuthToken. `version` is only required when updating an
+/// existing resource
+pub struct CreateUpdateUserAuthToken {
+    /// Resource version. See [versioning](ResourceVersion)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<u32>,
+    /// Whether the token is still valid for authentication
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enabled: Option<bool>,
+    /// A note that describes the token
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+    /// Time when the token expires
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiration_time: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[doc(hidden)]
+pub struct PasswordResetToken {
+    /// The password token received via email
+    pub token: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// Type that represents a new temporary password
+pub struct TemporaryPassword {
+    /// The new temporary password generated once [PasswordResetToken] has been sent to the server
+    pub password: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// Simple server configuration
+pub struct GlobalInfoConfig {
+    /// Regular expression that the username must match
+    pub user_name_regex: String,
+    /// Regular expression that the password must match
+    pub password_regex: String,
+    /// Regular expression that tag names must match
+    pub tag_name_regex: String,
+    /// Regular expression that tag category names must match
+    pub tag_category_name_regex: String,
+    /// Default user rank upon signup
+    pub default_user_rank: String,
+    /// Available privileges enabled for this server
+    pub privileges: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// Simple server statistics
+pub struct GlobalInfo {
+    /// The total number of posts
+    pub post_count: u32,
+    /// Total disk usage
+    pub disk_usage: u32,
+    /// The current featured post
+    pub featured_post: Option<u32>,
+    /// The time the current featured post was featured
+    pub featuring_time: Option<NaiveDateTime>,
+    /// The user who uploaded the featured post
+    pub featuring_user: Option<u32>,
+    /// The current server time
+    pub server_time: NaiveDateTime,
+    /// The configuration for this server
+    pub config: GlobalInfoConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A single pool category. The primary purpose of pool categories is to distinguish certain pool
+/// types (such as series, relations etc.), which improves user experience.
+pub struct PoolCategoryResource {
+    /// Resource version. See [versioning](ResourceVersion)
+    pub version: Option<u32>,
+    /// The category name
+    pub name: Option<String>,
+    /// The category color
+    pub color: Option<String>,
+    /// How many pools is the given category used with
+    pub usages: Option<u32>,
+    /// Whether the pool category is the default one
+    pub default: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
+#[builder(setter(strip_option))]
+/// `struct` used for creating or updating a pool category. This type uses a Builder pattern like
+/// so:
+///
+/// ```no_run
+/// use szurubooru_client::models::CreateUpdatePoolCategoryBuilder;
+/// // Updating an existing pool category
+/// let cu_pool_cat = CreateUpdatePoolCategoryBuilder::default()
+///                         .version(1)
+///                         .name("new_name".to_string())
+///                         .build()
+///                         .unwrap();
+/// ```
+pub struct CreateUpdatePoolCategory {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Category version (used for updating)
+    pub version: Option<u32>,
+    /// Category name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Category color
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// Type that represents a Pool resource
+pub struct PoolResource {
+    /// Resource version. See [versioning](ResourceVersion)
+    pub version: Option<u32>,
+    /// The pool identifier
+    pub id: Option<u32>,
+    /// A list of pool names (aliases)
+    pub names: Option<Vec<String>>,
+    /// The name of the category the given pool belongs to
+    pub category: Option<String>,
+    /// An ordered list of posts. Posts are ordered by insertion by default
+    pub posts: Option<Vec<MicroPostResource>>,
+    /// Time the pool was created
+    pub creation_time: Option<NaiveDateTime>,
+    /// Time the pool was edited
+    pub last_edit_time: Option<NaiveDateTime>,
+    /// The total number of posts the pool has
+    pub post_count: Option<u32>,
+    /// The pool description (instructions how to use, history etc). The client should render
+    /// it as Markdown
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
+#[builder(setter(strip_option))]
+#[serde(rename_all = "camelCase")]
+/// This type is used when creating or updating a pool object. It uses the builder pattern like so:
+///
+/// ```no_run
+/// use szurubooru_client::models::CreateUpdatePoolBuilder;
+/// // Create a new pool
+/// let create_pool = CreateUpdatePoolBuilder::default()
+///                     .names(vec!["foo".to_string(), "bar".to_string()])
+///                     .description("Markdown string".to_string())
+///                     .build()
+///                     .unwrap();
+/// ```
+///
+pub struct CreateUpdatePool {
+    /// Resource version. See [versioning](ResourceVersion)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<u32>,
+    /// Names and aliases for this pool. When creating a new pool the first name in this list
+    /// is used as the pool name
+    pub names: Option<Vec<String>>,
+    /// Pool category that this pool belongs to. Must already exist
+    pub category: Option<String>,
+    /// Markdown string describing this pool
+    pub description: Option<String>,
+    /// A list of posts that belong to this pool. The server will throw an error if one of these
+    /// post IDs doesn't exist
+    pub posts: Option<Vec<u32>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
+#[serde(rename_all = "camelCase")]
+/// This type is used to specify which pools should be merged. Uses the builder pattern like so:
+///
+/// ```no_run
+/// use szurubooru_client::models::MergePoolBuilder;
+/// // Merge pool ID 1 at version 1 to pool ID 3 at version 5
+/// let merge_pool = MergePoolBuilder::default()
+///                     .remove_version(1)
+///                     .remove(1)
+///                     .merge_to_version(5)
+///                     .merge_to(3)
+///                     .build()
+///                     .unwrap();
+/// ```
+pub struct MergePool {
+    /// Version of the pool to remove. Must match the current Pool version
+    pub remove_version: u32,
+    /// Pool ID to remove
+    pub remove: u32,
+    /// Version of the pool to merge TO
+    pub merge_to_version: u32,
+    /// Pool ID of the pool to merge TO
+    pub merge_to: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A micro resource representing a Pool. A subset of the fields of a [PoolResource].
+pub struct MicroPoolResource {
+    /// The pool ID
+    pub id: Option<u32>,
+    /// Name and aliases for this pool
+    pub names: Option<Vec<String>>,
+    /// The category this pool belongs to
+    pub category: Option<String>,
+    /// The total number of posts in this pool
+    pub post_count: Option<u32>,
+    /// A markdown string describing the pool
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A type representing a Comment on a post
+pub struct CommentResource {
+    /// Resource version. See [versioning](ResourceVersion)
+    pub version: Option<u32>,
+    /// The comment ID
+    pub id: Option<u32>,
+    /// The post ID this comment belongs to
+    pub post_id: Option<u32>,
+    /// The user who had posted this comment
+    pub user: Option<MicroUserResource>,
+    /// The text of the comment
+    pub text: Option<String>,
+    /// When was the comment posted
+    pub creation_time: Option<NaiveDateTime>,
+    /// When was the last time this comment was edited
+    pub last_edit_time: Option<NaiveDateTime>,
+    /// The sum of the -1/0/+1 scores by other users
+    pub score: Option<i32>,
+    /// The user's own score for this comment
+    pub own_score: Option<i32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
+#[builder(setter(strip_option))]
+#[serde(rename_all = "camelCase")]
+/// This type is used when creating or updating a comment. This type uses the builder pattern like
+/// so:
+///
+/// ```no_run
+/// use szurubooru_client::models::CreateUpdateCommentBuilder;
+/// // Update an existing comment's text for the post ID 1234
+/// let update_comment = CreateUpdateCommentBuilder::default()
+///                         .version(1)
+///                         .text("Hello this is my comment".to_string())
+///                         .post_id(1234)
+///                         .build()
+///                         .unwrap();
+/// ```
+pub struct CreateUpdateComment {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Resource version. See [versioning](ResourceVersion)
+    /// Omitted when creating a new comment
+    pub version: Option<u32>,
+    /// The text of the comment
+    pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// The post the comment should be attached to. Only used when creating a new comment
+    pub post_id: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// The kind of snapshot that has been recorded
+pub enum SnapshotOperationType {
+    /// Item was created
+    Created,
+    /// Item was modified
+    Modified,
+    /// Item was deleted
+    Deleted,
+    /// Item was merged
+    Merged,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// The kind of resource described by this snapshot
+pub enum SnapshotResourceType {
+    /// Tag resource
+    Tag,
+    /// Tag category resource
+    #[serde(rename = "tag_category")]
+    TagCategory,
+    /// Post resource
+    Post,
+    /// Pool resource
+    Pool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", untagged)]
+/// Data for a resource that was created
+#[allow(clippy::large_enum_variant)]
+pub enum SnapshotCreationDeletionData {
+    /// A tag resource that was created
+    Tag(TagResource),
+    /// A tag category resource that was created
+    TagCategory(TagCategoryResource),
+    /// A post resource that was created
+    Post(PostResource),
+    /// A pool resource that was created
+    Pool(PoolResource),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// Data for a modified resource
+pub struct SnapshotModificationData {
+    /// The type of snapshot
+    #[serde(rename = "type")]
+    pub snapshot_type: String,
+    /// The JSON value for the modified resource. A dictionary diff that depends on the resource
+    /// kind.
+    ///
+    /// See [here](https://github.com/rr-/szurubooru/blob/master/doc/API.md#snapshot) for more
+    /// information
+    pub value: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+/// Data for a merged resource
+pub struct SnapshotMergeData {
+    /// Resource IDs that have been merged
+    pub merged: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+/// Type representing the data as part of a snapshot
+#[allow(clippy::large_enum_variant)]
+pub enum SnapshotData {
+    /// Data for a Created or Deleted resource
+    CreateOrDelete(SnapshotCreationDeletionData),
+    /// Data for a modified resource
+    Modify(SnapshotModificationData),
+    /// Data for a merged resource
+    Merge(SnapshotMergeData),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// Overall type representing some sort of change to a resource
+pub struct SnapshotResource {
+    /// The operation type
+    pub operation: Option<SnapshotOperationType>,
+    #[serde(rename = "type")]
+    /// The resource type
+    pub resource_type: Option<SnapshotResourceType>,
+    /// The ID of the snapshot itself
+    pub id: Option<u32>,
+    /// The user who created this change
+    pub user: Option<MicroUserResource>,
+    /// The data associated with this resource change
+    pub data: Option<SnapshotData>,
+    /// When this resource change occurred
+    pub time: Option<NaiveDateTime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A result when searching for similar posts to a given image
+pub struct ImageSearchSimilarPost {
+    /// How close the post is to the given image
+    pub distance: f32,
+    /// The post in question
+    pub post: PostResource,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// A type to represent the result from an Image search request
+pub struct ImageSearchResult {
+    /// A post resource that is exact byte-to-byte duplicate of the input file
+    pub exact_post: Option<PostResource>,
+    /// A series of post resources that aren't exact duplicate, but visually resembles
+    /// the input file. Works only on images and animations, does not work for videos and
+    /// Flash movies.
+    pub similar_posts: Vec<ImageSearchSimilarPost>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+/// A type that represents posts that are before or after an existing post
+pub struct AroundPostResult {
+    /// A previous post, if it exists
+    prev: Option<u32>,
+    /// The next post, if it exists
+    next: Option<u32>,
+}
