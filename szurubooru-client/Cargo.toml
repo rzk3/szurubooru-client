@@ -2,6 +2,12 @@
 name = "szurubooru-client"
 version = "0.1.0"
 edition = "2021"
+authors = ["Scott Lyons <scottalyons@gmail.com>"]
+description = "A wrapper around the Szurubooru API, including type-safe Query and Sort tokens"
+license = "MIT"
+repository = "https://github.com/slyons/szurubooru-client"
+readme = "README.md"
+keywords = ["image_host", "szurubooru", "booru"]
 
 [dependencies]
 base64 = "0.22.1"
