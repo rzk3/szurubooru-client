@@ -2,12 +2,14 @@
 
 use crate::{errors::*, models::*, tokens::*};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use reqwest::header::CONTENT_TYPE;
 use reqwest::{
     header::{HeaderMap, ACCEPT, AUTHORIZATION},
     multipart::{Form, Part},
     Client, ClientBuilder, Method, RequestBuilder, Response,
 };
 use serde::{de::DeserializeOwned, Serialize};
+use serde_json::Value;
 use sha1::{Digest, Sha1};
 use std::fmt::{Display, Formatter};
 use std::path::Path;
@@ -88,6 +90,12 @@ impl SzurubooruClient {
         SzurubooruClient::new(host, auth, allow_insecure)
     }
 
+    /// Create a new client with anonymous credentials
+    pub fn new_anonymous(host: &str, allow_insecure: bool) -> SzurubooruResult<Self> {
+        let auth = SzurubooruAuth::None;
+        SzurubooruClient::new(host, auth, allow_insecure)
+    }
+
     fn new(host: &str, auth: SzurubooruAuth, allow_insecure: bool) -> SzurubooruResult<Self> {
         let host = if host.ends_with("/") {
             &host[0..host.len() - 1]
@@ -103,6 +111,7 @@ impl SzurubooruClient {
         let mut header_map = HeaderMap::new();
         //header_map.append(AUTHORIZATION, token_header_value.parse().unwrap());
         header_map.append(ACCEPT, "application/json".parse().unwrap());
+        header_map.append(CONTENT_TYPE, "application/json".parse().unwrap());
 
         let client = ClientBuilder::new()
             .danger_accept_invalid_certs(allow_insecure)
@@ -288,7 +297,7 @@ impl<'a> SzurubooruRequest<'a> {
         T: AsRef<str> + Display,
     {
         let mut req_url = self.client.base_url.clone();
-        req_url.set_path(path.as_ref());
+        req_url.set_path(&format!("/api{}", path.as_ref()));
 
         if let Some(query_vec) = query {
             let mut qpm = req_url.query_pairs_mut();
@@ -315,7 +324,7 @@ impl<'a> SzurubooruRequest<'a> {
         // This doesn't detect the required `mut` for some reason
         #[allow(unused_mut)]
         let mut req = self.client.client.request(method, req_url);
-        match &self.client.auth {
+        let req = match &self.client.auth {
             SzurubooruAuth::TokenAuth(t) => {
                 let mut header_map = HeaderMap::new();
                 header_map.append(AUTHORIZATION, t.parse().unwrap());
@@ -324,7 +333,8 @@ impl<'a> SzurubooruRequest<'a> {
             }
             SzurubooruAuth::BasicAuth(u, p) => req.basic_auth(u, Some(p)),
             SzurubooruAuth::None => req,
-        }
+        };
+        req
     }
 
     #[tracing::instrument(skip(self), fields(base_url=self.client.base_url.to_string()))]
@@ -351,6 +361,20 @@ impl<'a> SzurubooruRequest<'a> {
         self.handle_request(request).await
     }
 
+    async fn handle_response(&self, response: Response) -> SzurubooruResult<Response> {
+        if response.status().is_client_error() || response.status().is_server_error() {
+            let resp_json = response
+                .text()
+                .await
+                .map_err(SzurubooruClientError::RequestError)?;
+            let server_error = serde_json::from_str::<SzurubooruServerError>(&resp_json)
+                .map_err(|e| SzurubooruClientError::ResponseParsingError(e, resp_json))?;
+            Err(SzurubooruClientError::SzurubooruServerError(server_error))
+        } else {
+            Ok(response)
+        }
+    }
+
     async fn handle_request<T: DeserializeOwned>(
         &self,
         request: RequestBuilder,
@@ -361,10 +385,11 @@ impl<'a> SzurubooruRequest<'a> {
 
         let response = self.client.client.execute(request).await;
 
-        let response = response
-            .map_err(SzurubooruClientError::RequestError)?
-            .error_for_status()
-            .map_err(SzurubooruClientError::RequestError)?;
+        let response = self
+            .handle_response(response.map_err(SzurubooruClientError::RequestError)?)
+            .await?;
+        //.error_for_status()
+        //.map_err(SzurubooruClientError::RequestError)?;
 
         let response_text = response
             .text()
@@ -400,13 +425,13 @@ impl<'a> SzurubooruRequest<'a> {
     pub async fn update_tag_category<T>(
         &self,
         name: T,
-        resource: &TagCategoryResource,
+        update_tag_cat: &CreateUpdateTagCategory,
     ) -> SzurubooruResult<TagCategoryResource>
     where
         T: AsRef<str> + Display,
     {
         let path = format!("/tag-category/{name}");
-        self.do_request(Method::PUT, &path, None, Some(resource))
+        self.do_request(Method::PUT, &path, None, Some(update_tag_cat))
             .await
     }
 
@@ -427,8 +452,9 @@ impl<'a> SzurubooruRequest<'a> {
     {
         let path = format!("/tag-category/{name}");
         let version_obj = ResourceVersion { version };
-        self.do_request(Method::DELETE, &path, None, Some(&version_obj))
+        self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
+            .map(|_| ())
     }
 
     /// Sets given tag category as default. All new tags created manually or automatically will
@@ -447,9 +473,9 @@ impl<'a> SzurubooruRequest<'a> {
     /// all possible query tokens, or use (QueryToken)[tokens::QueryToken] for a custom token
     pub async fn list_tags(
         &self,
-        query: &Vec<QueryToken>,
+        query: Option<&Vec<QueryToken>>,
     ) -> SzurubooruResult<PagedSearchResult<TagResource>> {
-        self.do_request(Method::GET, "/tags", Some(query), None::<&String>)
+        self.do_request(Method::GET, "/tags", query, None::<&String>)
             .await
     }
 
@@ -502,8 +528,9 @@ impl<'a> SzurubooruRequest<'a> {
     {
         let path = format!("/tag/{name}");
         let version_obj = ResourceVersion { version };
-        self.do_request(Method::DELETE, &path, None, Some(&version_obj))
+        self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
+            .map(|_| ())
     }
 
     /// Removes source tag and merges all of its usages, suggestions and implications to the
@@ -697,11 +724,13 @@ impl<'a> SzurubooruRequest<'a> {
             .build()
             .map_err(SzurubooruClientError::RequestBuilderError)?;
 
-        self.client
+        let resp_res = self
+            .client
             .client
             .execute(request)
             .await
-            .map_err(SzurubooruClientError::RequestError)
+            .map_err(|e| SzurubooruClientError::RequestError(e))?;
+        self.handle_response(resp_res).await
     }
 
     ///Downloads the given post ID's image as a stream of bytes
@@ -718,10 +747,11 @@ impl<'a> SzurubooruRequest<'a> {
     ///Downloads the given post ID's image as a (Bytes)[bytes::Bytes] struct
     pub async fn get_post_content_bytes(&self, post_id: u32) -> SzurubooruResult<bytes::Bytes> {
         let content_response = self.get_post_content(post_id).await?;
+
         content_response
             .bytes()
             .await
-            .map_err(SzurubooruClientError::RequestError)
+            .map_err(|e| SzurubooruClientError::RequestError(e))
     }
 
     /// Retrieves posts that look like the input image

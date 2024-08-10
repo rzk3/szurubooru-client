@@ -5,9 +5,10 @@
 //! See [here](https://github.com/rr-/szurubooru/blob/master/doc/API.md#field-selecting) for
 //! more information.
 
-use chrono::NaiveDateTime;
+use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use strum_macros::AsRefStr;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -98,9 +99,9 @@ pub struct TagResource {
     /// the user by the web client on usage
     pub suggestions: Option<Vec<MicroTagResource>>,
     /// time the tag was created
-    pub creation_time: Option<NaiveDateTime>,
+    pub creation_time: Option<DateTime<Utc>>,
     /// time the tag was edited
-    pub last_edit_time: Option<NaiveDateTime>,
+    pub last_edit_time: Option<DateTime<Utc>>,
     /// the number of posts the tag was used in
     pub usages: Option<u32>,
     /// the tag description (instructions how to use, history etc.) The client should render
@@ -128,21 +129,27 @@ pub struct TagResource {
 #[builder(setter(strip_option))]
 pub struct CreateUpdateTag {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     /// resource version. See [versioning](ResourceVersion)
     pub version: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     /// Tag names and aliases, must match `tag_name_regex` from the server's configuration
     pub names: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     /// Category that this tag belongs to. Must already exist
     pub category: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     /// The tag description in Markdown format
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     /// Tags that should be implied when this tag is used
     pub implications: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     /// Tags that should be suggested when this tag is used
     pub suggestions: Option<Vec<String>>,
 }
@@ -160,21 +167,31 @@ pub struct TagCategoryResource {
     /// How many tags is the given category used with
     pub usages: Option<u32>,
     /// The order in which tags with this category are displayed, ascending
-    pub order: Option<String>,
+    pub order: Option<u32>,
     /// Whether the tag category is the default one
     pub default: Option<bool>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[builder(setter(into))]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Builder)]
+#[builder(setter(strip_option))]
 /// Used for creating or updating a Tag Category
 pub struct CreateUpdateTagCategory {
+    /// Resource version. See [versioning](ResourceVersion)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
+    pub version: Option<u32>,
     /// The name of the category to create
-    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
+    pub name: Option<String>,
     /// The display color to use for the category
-    pub color: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
+    pub color: Option<String>,
     /// The order in which tags with this category are displayed, ascending
-    pub order: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
+    pub order: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
@@ -261,9 +278,9 @@ pub struct PostResource {
     /// The post identifier
     pub id: Option<u32>,
     /// Time the post was created
-    pub creation_time: Option<NaiveDateTime>,
+    pub creation_time: Option<DateTime<Utc>>,
     /// Time the post was edited
-    pub last_edit_time: Option<NaiveDateTime>,
+    pub last_edit_time: Option<DateTime<Utc>>,
     /// Whether the post is safe for work
     pub safety: Option<PostSafety>,
     #[serde(rename = "type")]
@@ -311,7 +328,7 @@ pub struct PostResource {
     /// How many posts are related to this post
     pub relation_count: Option<u32>,
     /// The last time the post was featured
-    pub last_feature_time: Option<NaiveDateTime>,
+    pub last_feature_time: Option<DateTime<Utc>>,
     /// List of users who have favorited this post
     pub favorited_by: Option<Vec<MicroUserResource>>,
     /// Whether the post uses custom thumbnail
@@ -326,7 +343,7 @@ pub struct PostResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[builder(setter(into, strip_option))]
+#[builder(setter(strip_option))]
 #[serde(rename_all = "camelCase")]
 /// A `struct` used to create or update a post. For updating purposes
 /// the [version](CreateUpdatePost::version) field is required
@@ -447,10 +464,10 @@ pub struct UserResource {
     pub rank: Option<UserRank>,
     #[serde(rename = "last-login-time")]
     /// The last login time
-    pub last_login_time: Option<NaiveDateTime>,
+    pub last_login_time: Option<DateTime<Utc>>,
     #[serde(rename = "creation-time")]
     /// The user registration time
-    pub creation_time: Option<NaiveDateTime>,
+    pub creation_time: Option<DateTime<Utc>>,
     /// How to render the user avatar
     pub avatar_style: Option<UserAvatarStyle>,
     /// The URL to the avatar
@@ -474,7 +491,7 @@ pub struct UserResource {
     pub favorite_post_count: Option<SzuruEither<u32, bool>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Builder)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, Builder)]
 #[builder(setter(into, strip_option))]
 #[serde(rename_all = "camelCase")]
 /// `struct` used to create or update a user resource. The version field is only used when
@@ -482,15 +499,20 @@ pub struct UserResource {
 pub struct CreateUpdateUser {
     /// Resource version. See [versioning](ResourceVersion)
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     pub version: Option<u32>,
     /// The username
+    #[builder(default)]
     pub name: Option<String>,
     /// The user's password
+    #[builder(default)]
     pub password: Option<String>,
     /// The user's desired rank, if not given will default to `default_rank` in the server's
     /// configuration
+    #[builder(default)]
     pub rank: Option<UserRank>,
     /// The user avatar style, Gravatar or Manual
+    #[builder(default)]
     pub avatar_style: Option<UserAvatarStyle>,
 }
 
@@ -517,15 +539,15 @@ pub struct UserAuthTokenResource {
     /// Whether the token is still valid for authentication
     pub enabled: Option<bool>,
     /// Time when the token expires
-    pub expiration_time: Option<NaiveDateTime>,
+    pub expiration_time: Option<DateTime<Utc>>,
     /// Resource version. See [versioning](ResourceVersion)
     pub version: Option<u32>,
     /// time the user token was created
-    pub creation_time: Option<NaiveDateTime>,
+    pub creation_time: Option<DateTime<Utc>>,
     /// time the user token was edited
-    pub last_edit_time: Option<NaiveDateTime>,
+    pub last_edit_time: Option<DateTime<Utc>>,
     /// the last time this token was used
-    pub last_usage_time: Option<NaiveDateTime>,
+    pub last_usage_time: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
@@ -545,7 +567,7 @@ pub struct CreateUpdateUserAuthToken {
     pub note: Option<String>,
     /// Time when the token expires
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub expiration_time: Option<NaiveDateTime>,
+    pub expiration_time: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -578,8 +600,14 @@ pub struct GlobalInfoConfig {
     pub tag_category_name_regex: String,
     /// Default user rank upon signup
     pub default_user_rank: String,
+    /// Whether safety is enabled
+    pub enable_safety: bool,
+    /// Contact email for this server
+    pub contact_email: Option<String>,
+    /// Is sending email enabled for this server
+    pub can_send_mails: bool,
     /// Available privileges enabled for this server
-    pub privileges: Vec<String>,
+    pub privileges: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -593,11 +621,11 @@ pub struct GlobalInfo {
     /// The current featured post
     pub featured_post: Option<u32>,
     /// The time the current featured post was featured
-    pub featuring_time: Option<NaiveDateTime>,
+    pub featuring_time: Option<DateTime<Utc>>,
     /// The user who uploaded the featured post
     pub featuring_user: Option<u32>,
     /// The current server time
-    pub server_time: NaiveDateTime,
+    pub server_time: DateTime<Utc>,
     /// The configuration for this server
     pub config: GlobalInfoConfig,
 }
@@ -660,9 +688,9 @@ pub struct PoolResource {
     /// An ordered list of posts. Posts are ordered by insertion by default
     pub posts: Option<Vec<MicroPostResource>>,
     /// Time the pool was created
-    pub creation_time: Option<NaiveDateTime>,
+    pub creation_time: Option<DateTime<Utc>>,
     /// Time the pool was edited
-    pub last_edit_time: Option<NaiveDateTime>,
+    pub last_edit_time: Option<DateTime<Utc>>,
     /// The total number of posts the pool has
     pub post_count: Option<u32>,
     /// The pool description (instructions how to use, history etc). The client should render
@@ -758,9 +786,9 @@ pub struct CommentResource {
     /// The text of the comment
     pub text: Option<String>,
     /// When was the comment posted
-    pub creation_time: Option<NaiveDateTime>,
+    pub creation_time: Option<DateTime<Utc>>,
     /// When was the last time this comment was edited
-    pub last_edit_time: Option<NaiveDateTime>,
+    pub last_edit_time: Option<DateTime<Utc>>,
     /// The sum of the -1/0/+1 scores by other users
     pub score: Option<i32>,
     /// The user's own score for this comment
@@ -890,7 +918,7 @@ pub struct SnapshotResource {
     /// The data associated with this resource change
     pub data: Option<SnapshotData>,
     /// When this resource change occurred
-    pub time: Option<NaiveDateTime>,
+    pub time: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -922,4 +950,79 @@ pub struct AroundPostResult {
     prev: Option<u32>,
     /// The next post, if it exists
     next: Option<u32>,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::models::{GlobalInfo, GlobalInfoConfig, TagCategoryResource};
+    use chrono::Datelike;
+
+    #[test]
+    fn test_parse_global_info() {
+        let cfg_str = r#"{
+            "name": "integrationland",
+            "userNameRegex": "^[a-zA-Z0-9_-]{1,32}$",
+            "passwordRegex": "^.{5,}$",
+            "tagNameRegex": "^\\S+$",
+            "tagCategoryNameRegex": "^[^\\s%+#/]+$",
+            "defaultUserRank": "regular",
+            "enableSafety": true,
+            "contactEmail": null,
+            "canSendMails": false,
+            "privileges": {
+                "users:create:self": "anonymous",
+                "users:create:any": "administrator",
+                "comments:edit:own": "regular",
+                "comments:list": "regular",
+                "comments:view": "regular",
+                "comments:score": "regular",
+                "snapshots:list": "power",
+                "uploads:create": "regular",
+                "uploads:useDownloader": "power"
+            }
+        }"#;
+
+        let global_config =
+            serde_json::from_str::<GlobalInfoConfig>(cfg_str).expect("Unable to parse cfg_str");
+        assert_eq!(global_config.can_send_mails, false);
+        let info_str = r#"{"postCount": 0,
+            "diskUsage": 0,
+            "serverTime": "2024-08-09T21:41:24.123623Z",
+            "config": {
+                "name": "integrationland",
+                "userNameRegex": "^[a-zA-Z0-9_-]{1,32}$",
+                "passwordRegex": "^.{5,}$",
+                "tagNameRegex": "^\\S+$",
+                "tagCategoryNameRegex": "^[^\\s%+#/]+$",
+                "defaultUserRank": "regular",
+                "enableSafety": true,
+                "contactEmail": null,
+                "canSendMails": false,
+                "privileges": {
+                    "users:create:self": "anonymous"
+                }
+            },
+            "featuredPost": null,
+            "featuringUser": null,
+            "featuringTime": null
+        }"#;
+        let global_info =
+            serde_json::from_str::<GlobalInfo>(info_str).expect("Unable to parse info_str");
+        assert_eq!(global_info.server_time.year(), 2024);
+    }
+
+    #[test]
+    fn test_parse_tag_category_resource() {
+        let input_str = r#"        {
+            "name": "default",
+            "version": 1,
+            "color": "default",
+            "usages": 0,
+            "default": true,
+            "order": 1
+        }"#;
+        let tag_cat = serde_json::from_str::<TagCategoryResource>(input_str)
+            .expect("Unable to parse tag category string");
+        assert_eq!(tag_cat.name, Some("default".to_string()));
+    }
 }

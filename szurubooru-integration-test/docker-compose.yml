@@ -15,15 +15,15 @@ services:
       ## or FQDNs/IP addresses if these services are running outside of Docker
       POSTGRES_HOST: sql
       ## Credentials for database:
-      POSTGRES_USER:
-      POSTGRES_PASSWORD:
+      POSTGRES_USER: pguser
+      POSTGRES_PASSWORD: pgpassword
       ## Commented Values are Default:
       #POSTGRES_DB: defaults to same as POSTGRES_USER
       #POSTGRES_PORT: 5432
       #LOG_SQL: 0 (1 for verbose SQL logs)
       THREADS:
     volumes:
-      - "${MOUNT_DATA}:/data"
+      - "sz-data:/data"
       - "${SERVER_MOUNT}/config.yaml:/opt/app/config.yaml"
 
   client:
@@ -34,7 +34,7 @@ services:
       BACKEND_HOST: server
       BASE_URL: ${BASE_URL}
     volumes:
-      - "${MOUNT_DATA}:/data:ro"
+      - "sz-data:/data:ro"
     ports:
       - "${PORT}:80"
 
@@ -42,7 +42,10 @@ services:
     image: postgres:11-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER:
-      POSTGRES_PASSWORD:
-    volumes:
-      - "${MOUNT_SQL}:/var/lib/postgresql/data"
+      POSTGRES_USER: pguser
+      POSTGRES_PASSWORD: pgpassword
+    #volumes:
+    #  - "${MOUNT_SQL}/sqldata:/var/lib/postgresql/data"
+
+volumes:
+  sz-data:

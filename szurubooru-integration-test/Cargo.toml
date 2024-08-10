@@ -4,4 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+progress = "0.2.0"
 szurubooru-client = { version = "0.1.0", path = "../szurubooru-client" }
+tokio = { version = "1.39.2", features = ["full", "test-util", "tracing"] }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
