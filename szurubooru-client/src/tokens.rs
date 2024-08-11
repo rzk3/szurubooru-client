@@ -143,18 +143,18 @@ impl QueryToken {
 impl Display for QueryToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let suffix = if !self.value.is_empty() {
-            format!(":{}", self.value)
+            format!(":{}", encode(&self.value))
         } else {
             "".to_string()
         };
-        write!(f, "{}{}", self.key, suffix)
+        write!(f, "{}{}", encode(&self.key), suffix)
     }
 }
 
 impl ToQueryString for Vec<QueryToken> {
     fn to_query_string(&self) -> String {
         let query_vec: Vec<String> = self.iter().map(|qv| qv.to_string()).collect();
-        encode(&query_vec.join(" ")).to_string()
+        query_vec.join(" ")
     }
 }
 

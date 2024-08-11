@@ -1153,12 +1153,17 @@ impl<'a> SzurubooruRequest<'a> {
     pub async fn delete_comment(&self, comment_id: u32, version: u32) -> SzurubooruResult<()> {
         let path = format!("/comment/{comment_id}");
         let version_obj = ResourceVersion { version };
-        self.do_request(Method::DELETE, &path, None, Some(&version_obj))
+        self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
+            .map(|_| ())
     }
 
     /// Updates score of authenticated user for given comment. Valid scores are -1, 0 and 1.
-    pub async fn rate_comment(&self, comment_id: u32, score: i8) -> SzurubooruResult<()> {
+    pub async fn rate_comment(
+        &self,
+        comment_id: u32,
+        score: i8,
+    ) -> SzurubooruResult<CommentResource> {
         let path = format!("/comment/{comment_id}/score");
         let rating = RateResource { score };
         self.do_request(Method::PUT, &path, None, Some(&rating))
