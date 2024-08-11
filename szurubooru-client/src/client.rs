@@ -1084,7 +1084,7 @@ impl<'a> SzurubooruRequest<'a> {
         create_update_pool: &CreateUpdatePool,
     ) -> SzurubooruResult<PoolResource> {
         let path = format!("/pool/{pool_id}");
-        self.do_request(Method::POST, &path, None, Some(create_update_pool))
+        self.do_request(Method::PUT, &path, None, Some(create_update_pool))
             .await
     }
 
@@ -1097,10 +1097,12 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Deletes existing pool. All posts in the pool will only have their relation to the pool
     /// removed.
-    pub async fn delete_pool(&self, pool_id: u32) -> SzurubooruResult<()> {
+    pub async fn delete_pool(&self, pool_id: u32, version: u32) -> SzurubooruResult<()> {
         let path = format!("/pool/{pool_id}");
-        self.do_request(Method::DELETE, &path, None, None::<&String>)
+        let version_obj = ResourceVersion { version };
+        self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
+            .map(|_| ())
     }
 
     /// Removes source pool and merges all of its posts with the target pool. Other pool properties

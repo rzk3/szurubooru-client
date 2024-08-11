@@ -360,21 +360,27 @@ pub struct CreateUpdatePost {
     /// created. Tags created automatically have no implications, no suggestions, one name and
     /// their category is set to the first tag category found
     #[builder(default)]
-    pub tags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
     /// Required field, represents the SFW/NSFW state of a post
-    pub safety: PostSafety,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub safety: Option<PostSafety>,
     /// The origin of the post's content
     #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     /// The IDs of related posts
     #[builder(default)]
-    pub relations: Vec<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relations: Option<Vec<u32>>,
     /// Notes to be displayed on the post
     #[builder(default)]
-    pub notes: Vec<NoteResource>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub notes: Option<Vec<NoteResource>>,
     /// Flags relevant to the post. If omitted they will be auto-detected
     #[builder(default)]
-    pub flags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flags: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// The URL to download the content from
     #[builder(default)]
@@ -515,16 +521,20 @@ pub struct CreateUpdateUser {
     pub version: Option<u32>,
     /// The username
     #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     /// The user's password
     #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub password: Option<String>,
     /// The user's desired rank, if not given will default to `default_rank` in the server's
     /// configuration
     #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub rank: Option<UserRank>,
     /// The user avatar style, Gravatar or Manual
     #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar_style: Option<UserAvatarStyle>,
 }
 
@@ -570,15 +580,19 @@ pub struct UserAuthTokenResource {
 pub struct CreateUpdateUserAuthToken {
     /// Resource version. See [versioning](ResourceVersion)
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     pub version: Option<u32>,
     /// Whether the token is still valid for authentication
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     pub enabled: Option<bool>,
     /// A note that describes the token
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     pub note: Option<String>,
     /// Time when the token expires
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     pub expiration_time: Option<DateTime<Utc>>,
 }
 
@@ -731,16 +745,25 @@ pub struct PoolResource {
 pub struct CreateUpdatePool {
     /// Resource version. See [versioning](ResourceVersion)
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     pub version: Option<u32>,
     /// Names and aliases for this pool. When creating a new pool the first name in this list
     /// is used as the pool name
+    #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub names: Option<Vec<String>>,
     /// Pool category that this pool belongs to. Must already exist
+    #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
     /// Markdown string describing this pool
+    #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// A list of posts that belong to this pool. The server will throw an error if one of these
     /// post IDs doesn't exist
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     pub posts: Option<Vec<u32>>,
 }
 
@@ -827,12 +850,14 @@ pub struct CommentResource {
 ///                         .unwrap();
 /// ```
 pub struct CreateUpdateComment {
+    #[builder(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Resource version. See [versioning](ResourceVersion)
     /// Omitted when creating a new comment
     pub version: Option<u32>,
     /// The text of the comment
     pub text: String,
+    #[builder(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     /// The post the comment should be attached to. Only used when creating a new comment
     pub post_id: Option<u32>,
