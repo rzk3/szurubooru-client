@@ -77,6 +77,8 @@ impl<T> IntoClientResult<T> for SzuruEither<T, SzurubooruServerError> {
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 /// An error type returned by the server
 pub enum SzurubooruServerErrorType {
+    /// Inavlid pool category color
+    InvalidPoolCategoryColorError,
     /// Missing required file
     MissingRequiredFileError,
     /// Missing required parameter

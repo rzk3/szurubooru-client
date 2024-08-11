@@ -46,7 +46,7 @@ pub struct PagedSearchResult<T> {
     pub results: Vec<T>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 /// A [tag resource](TagResource) stripped down to `names`, `category` and `usages` fields.
 pub struct MicroTagResource {
     /// The tag names and aliases
@@ -219,7 +219,8 @@ pub struct TagSibling {
     pub occurrences: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Debug, Clone, Serialize, Deserialize, AsRefStr, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 /// The type of post
 pub enum PostType {
     /// Image post
@@ -240,7 +241,8 @@ pub enum PostType {
     Webm,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Debug, Clone, Serialize, Deserialize, AsRefStr, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
 /// How SFW/NSFW the post is
 pub enum PostSafety {
     /// Post is SFW
@@ -253,7 +255,7 @@ pub enum PostSafety {
     Unsafe,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 /// A post resource stripped down to `id` and `thumbnailUrl` fields.
 pub struct MicroPostResource {
@@ -269,7 +271,7 @@ pub(crate) struct PostId {
     pub id: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 /// A post resource
 pub struct PostResource {
@@ -313,6 +315,8 @@ pub struct PostResource {
     pub user: Option<MicroUserResource>,
     /// The collective score (+1/-1 rating) of the given post
     pub score: Option<i32>,
+    /// The user's score for this post
+    pub own_score: Option<i32>,
     /// Whether the authenticated user has given post in their favorites
     pub own_favorite: Option<bool>,
     /// How many tags the post is tagged with
@@ -348,30 +352,38 @@ pub struct PostResource {
 /// A `struct` used to create or update a post. For updating purposes
 /// the [version](CreateUpdatePost::version) field is required
 pub struct CreateUpdatePost {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Resource version. See [versioning](ResourceVersion)
+    #[builder(default)]
+    pub version: Option<u32>,
     /// Tags to use for this post. If specified tags do not exist yet, they will be automatically
     /// created. Tags created automatically have no implications, no suggestions, one name and
     /// their category is set to the first tag category found
+    #[builder(default)]
     pub tags: Vec<String>,
     /// Required field, represents the SFW/NSFW state of a post
     pub safety: PostSafety,
     /// The origin of the post's content
+    #[builder(default)]
     pub source: Option<String>,
     /// The IDs of related posts
-    pub relations: Option<Vec<u32>>,
+    #[builder(default)]
+    pub relations: Vec<u32>,
     /// Notes to be displayed on the post
-    pub notes: Option<Vec<NoteResource>>,
+    #[builder(default)]
+    pub notes: Vec<NoteResource>,
     /// Flags relevant to the post. If omitted they will be auto-detected
-    pub flags: Option<Vec<String>>,
+    #[builder(default)]
+    pub flags: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// The URL to download the content from
+    #[builder(default)]
     pub content_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     /// The token returned from
     /// [upload_temporary_file](crate::SzurubooruRequest::upload_temporary_file)
+    #[builder(default)]
     pub content_token: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    /// Resource version. See [versioning](ResourceVersion)
-    pub version: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -379,7 +391,7 @@ pub struct CreateUpdatePost {
 /// A token representing a temporary file upload
 pub struct TemporaryFileUpload {
     /// Temporary upload token
-    token: String,
+    pub token: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
@@ -409,7 +421,7 @@ pub struct RateResource {
     pub score: i8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 /// A text annotation rendered on top of the post
 pub struct NoteResource {
@@ -516,7 +528,7 @@ pub struct CreateUpdateUser {
     pub avatar_style: Option<UserAvatarStyle>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 /// A user resource stripped down to `name` and `avatarUrl` fields
 pub struct MicroUserResource {
@@ -663,17 +675,20 @@ pub struct PoolCategoryResource {
 /// ```
 pub struct CreateUpdatePoolCategory {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     /// Category version (used for updating)
     pub version: Option<u32>,
     /// Category name
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     pub name: Option<String>,
     /// Category color
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[builder(default)]
     pub color: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 /// Type that represents a Pool resource
 pub struct PoolResource {
@@ -771,7 +786,7 @@ pub struct MicroPoolResource {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 /// A type representing a Comment on a post
 pub struct CommentResource {

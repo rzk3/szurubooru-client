@@ -1,13 +1,15 @@
 use std::error::Error;
+use std::fs::File;
+use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 use szurubooru_client::models::*;
+use szurubooru_client::tokens::QueryToken;
 use szurubooru_client::*;
 use tokio::process::Command;
 use tracing::level_filters::LevelFilter;
-use tracing::{error, info, instrument};
+use tracing::{info, instrument};
 use tracing_subscriber::filter::EnvFilter;
-use tracing_subscriber::fmt::format::FmtSpan;
 
 #[tokio::main]
 #[tracing::instrument]
@@ -48,6 +50,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     test_tag_categories(&auth_client).await;
     test_tags(&auth_client).await;
+    test_creating_posts(&auth_client).await;
+    test_pool_categories(&auth_client).await;
 
     Command::new("sh")
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -283,4 +287,289 @@ async fn test_tags(client: &SzurubooruClient) {
         .expect("Could not delete tag");
 }
 
-//TODO: test Tag siblings once we've tested a post
+#[instrument(skip(client))]
+async fn test_creating_posts(client: &SzurubooruClient) {
+    info!("Testing creating posts");
+
+    info!("Listing posts (should be empty)");
+    let post_list = client
+        .request()
+        .list_posts(None)
+        .await
+        .expect("Could not list posts");
+    assert_eq!(post_list.total, 0);
+
+    info!("Testing upload by URL");
+    let wiki_post_obj = CreateUpdatePostBuilder::default()
+        .content_url("https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Maine_Coon_cat_by_Tomitheos.JPG/225px-Maine_Coon_cat_by_Tomitheos.JPG".to_string())
+        .tags(vec!["maine_coon".to_string(), "cat".to_string()])
+        .safety(PostSafety::Safe)
+        .build()
+        .expect("Could not build wiki post object");
+    let wiki_post = client
+        .request()
+        .create_post_from_url(&wiki_post_obj)
+        .await
+        .expect("Unable to create wiki post object");
+
+    info!("Updating existing post");
+    let wiki_post_update = CreateUpdatePostBuilder::default()
+        .version(wiki_post.version.unwrap())
+        .safety(wiki_post.safety.unwrap())
+        .source("Wikipedia".to_string())
+        .build()
+        .expect("Could not build wiki post update object");
+    let wiki_post = client
+        .request()
+        .update_post(wiki_post.id.unwrap(), &wiki_post_update)
+        .await
+        .expect("Unable to up wiki post object");
+    let post_list = client
+        .request()
+        .list_posts(None)
+        .await
+        .expect("Could not list posts");
+    assert_eq!(post_list.total, 1);
+
+    info!("Deleting wikipedia image");
+    client
+        .request()
+        .delete_post(wiki_post.id.unwrap(), wiki_post.version.unwrap())
+        .await
+        .expect("Could not delete wiki post");
+
+    info!("Test upload by File type");
+    let folly1_obj = CreateUpdatePostBuilder::default()
+        .tags(vec![
+            "maine_coon".to_string(),
+            "cat".to_string(),
+            "folly1".to_string(),
+        ])
+        .safety(PostSafety::Safe)
+        .build()
+        .expect("Could not build first upload object");
+    let folly1_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly1.jpg");
+    let mut folly1_file =
+        File::open(&folly1_path).expect(&format!("Could not open file {folly1_path:?}"));
+    let folly1_post = client
+        .request()
+        .create_post_from_file(&mut folly1_file, None, "folly1.jpg", &folly1_obj)
+        .await
+        .expect("Could not create post from folly1 file");
+
+    info!("Test upload by file path");
+    let folly2_obj = CreateUpdatePostBuilder::default()
+        .tags(vec![
+            "maine_coon".to_string(),
+            "cat".to_string(),
+            "folly2".to_string(),
+        ])
+        .safety(PostSafety::Safe)
+        .build()
+        .expect("Could not build second upload object");
+    let folly2_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly2.jpg");
+    let folly2_post = client
+        .request()
+        .create_post_from_file_path(folly2_path, None::<String>, &folly2_obj)
+        .await
+        .expect("Could not create post from folly2 path");
+
+    info!("Test upload by file path with thumbnail");
+    let folly3_obj = CreateUpdatePostBuilder::default()
+        .tags(vec![
+            "maine_coon".to_string(),
+            "cat".to_string(),
+            "folly3".to_string(),
+        ])
+        .safety(PostSafety::Safe)
+        .build()
+        .expect("Could not build third upload object");
+    let folly3_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly3.jpg");
+    let folly3_thumbnail = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly3_thumb.jpg");
+    let folly3_post = client
+        .request()
+        .create_post_from_file_path(folly3_path, Some(folly3_thumbnail), &folly3_obj)
+        .await
+        .expect("Could not create post with thumbnail");
+
+    info!("Testing temporary upload");
+    let folly4_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly4.jpg");
+    let folly4_temp_upload = client
+        .request()
+        .upload_temporary_file_from_path(folly4_path)
+        .await
+        .expect("Could not create temporary upload for folly4");
+    let folly4_obj = CreateUpdatePostBuilder::default()
+        .tags(vec![
+            "maine_coon".to_string(),
+            "cat".to_string(),
+            "folly4".to_string(),
+        ])
+        .content_token(folly4_temp_upload.token)
+        .safety(PostSafety::Safe)
+        .build()
+        .expect("Could not build fourth upload object");
+    let folly4_post = client
+        .request()
+        .create_post_from_token(&folly4_obj)
+        .await
+        .expect("Could not create upload from temporary token");
+
+    info!("Querying by tag");
+    let f4_results = client
+        .request()
+        .list_posts(Some(&vec![QueryToken::anonymous("cat")]))
+        .await
+        .expect("Could not list posts by tag cat");
+    assert_eq!(f4_results.total, 4);
+
+    info!("Testing pagination");
+    let post_list = client
+        .request()
+        .with_limit(1)
+        .list_posts(None)
+        .await
+        .expect("Could not list posts page 1");
+    assert_eq!(post_list.results.len(), 1);
+    let post_list2 = client
+        .request()
+        .with_limit(1)
+        .with_offset(1)
+        .list_posts(None)
+        .await
+        .expect("Could not list posts page 2");
+    assert_ne!(post_list.results, post_list2.results);
+
+    info!("Testing tag siblings");
+    let tag_occurrences = client
+        .request()
+        .get_tag_siblings("maine_coon")
+        .await
+        .expect("Could not fetch tag siblings");
+    let occurrences_filtered = tag_occurrences
+        .results
+        .iter()
+        .filter(|oc| {
+            oc.tag
+                .names
+                .as_ref()
+                .map(|names| names.contains(&"cat".to_string()))
+                .unwrap_or(false)
+        })
+        .count();
+    assert_eq!(occurrences_filtered, 1);
+
+    info!("Rating post");
+    let folly3_post = client
+        .request()
+        .rate_post(folly3_post.id.unwrap(), 1)
+        .await
+        .expect("Could not rate post");
+    assert_eq!(folly3_post.own_score, Some(1));
+
+    info!("Favoriting post");
+    let folly3_post = client
+        .request()
+        .favorite_post(folly3_post.id.unwrap())
+        .await
+        .expect("Could not favorite post");
+    assert_eq!(folly3_post.own_favorite, Some(true));
+
+    info!("Unfavorite post");
+    let folly3_post = client
+        .request()
+        .unfavorite_post(folly3_post.id.unwrap())
+        .await
+        .expect("Could not unfavorite post");
+    assert_eq!(folly3_post.own_favorite, Some(false));
+
+    info!("Featuring post");
+    let featured_post = client
+        .request()
+        .get_featured_post()
+        .await
+        .expect("Could not get featured post");
+    assert!(featured_post.is_none());
+
+    client
+        .request()
+        .set_featured_post(folly4_post.id.unwrap())
+        .await
+        .expect("Could not set featured post");
+
+    let featured_post = client
+        .request()
+        .get_featured_post()
+        .await
+        .expect("Could not get featured post");
+    assert!(featured_post.is_some());
+}
+
+#[instrument(skip(client))]
+async fn test_pool_categories(client: &SzurubooruClient) {
+    info!("Testing pool categories");
+
+    info!("Listing pool categories");
+    let pool_cats = client
+        .request()
+        .list_pool_categories()
+        .await
+        .expect("Could not list pool categories");
+    assert!(!pool_cats.results.is_empty());
+
+    info!("Creating pool category");
+    let create_cat = CreateUpdatePoolCategoryBuilder::default()
+        .name("cat_pool_category".to_string())
+        .color("purple".to_string())
+        .build()
+        .expect("Could not build pool category object");
+    let pool_cat = client
+        .request()
+        .create_pool_category(&create_cat)
+        .await
+        .expect("Could not create pool category");
+
+    let create_dog_cat = CreateUpdatePoolCategoryBuilder::default()
+        .name("dog_category".to_string())
+        .color("orange".to_string())
+        .build()
+        .expect("Could not build pool category object");
+    let dog_pool_cat = client
+        .request()
+        .create_pool_category(&create_dog_cat)
+        .await
+        .expect("Could not create pool category");
+
+    info!("Updating pool category");
+    let update_cat = CreateUpdatePoolCategoryBuilder::default()
+        .version(pool_cat.version.unwrap())
+        .color("white".to_string())
+        .build()
+        .expect("Could not build pool category update");
+    let pool_cat = client
+        .request()
+        .update_pool_category(pool_cat.name.unwrap(), &update_cat)
+        .await
+        .expect("Could not update pool category");
+
+    info!("Getting pool category");
+    let pool_cat = client
+        .request()
+        .get_pool_category(pool_cat.name.unwrap())
+        .await
+        .expect("Could not get pool category");
+
+    info!("Deleting pool category");
+    client
+        .request()
+        .delete_pool_category(dog_pool_cat.name.unwrap(), dog_pool_cat.version.unwrap())
+        .await
+        .expect("Could not delete pool category");
+
+    info!("Setting default pool category");
+    let pool_cat = client
+        .request()
+        .set_default_pool_category(pool_cat.name.unwrap())
+        .await
+        .expect("Could not set default pool category");
+}
