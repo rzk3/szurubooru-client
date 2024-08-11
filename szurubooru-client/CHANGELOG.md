@@ -1,3 +1,13 @@
+## v0.2.3 (2024-08-11)
+
+### Fix
+
+- **client**: fixing reverse image search
+
+### Refactor
+
+- **main**: fixing some stuff for clippy
+
 ## v0.2.2 (2024-08-11)
 
 ### Fix
