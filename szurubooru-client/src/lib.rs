@@ -35,6 +35,4 @@ pub mod errors;
 pub use errors::SzurubooruResult;
 pub mod models;
 
-#[cfg(test)]
-mod tests;
 pub mod tokens;

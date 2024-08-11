@@ -13,6 +13,11 @@ repos:
     hooks:
         - id: fmt
         - id: cargo-check
+          stages: [pre-push]
+        - id: build
+          stages: [pre-push]
+        - id: test
+          stages: [pre-push]
 -   repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.4.0
     hooks:

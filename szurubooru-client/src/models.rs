@@ -890,6 +890,9 @@ pub enum SnapshotResourceType {
     Post,
     /// Pool resource
     Pool,
+    /// Pool Category
+    #[serde(rename = "pool_category")]
+    PoolCategory,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -905,6 +908,8 @@ pub enum SnapshotCreationDeletionData {
     Post(PostResource),
     /// A pool resource that was created
     Pool(PoolResource),
+    /// A pool category resource that was created
+    PoolCategory(PoolCategoryResource),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -923,13 +928,6 @@ pub struct SnapshotModificationData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-/// Data for a merged resource
-pub struct SnapshotMergeData {
-    /// Resource IDs that have been merged
-    pub merged: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 /// Type representing the data as part of a snapshot
 #[allow(clippy::large_enum_variant)]
@@ -939,7 +937,7 @@ pub enum SnapshotData {
     /// Data for a modified resource
     Modify(SnapshotModificationData),
     /// Data for a merged resource
-    Merge(SnapshotMergeData),
+    Merge(Vec<String>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -952,7 +950,7 @@ pub struct SnapshotResource {
     /// The resource type
     pub resource_type: Option<SnapshotResourceType>,
     /// The ID of the snapshot itself
-    pub id: Option<u32>,
+    pub id: Option<String>,
     /// The user who created this change
     pub user: Option<MicroUserResource>,
     /// The data associated with this resource change
@@ -994,7 +992,7 @@ pub struct AroundPostResult {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{GlobalInfo, GlobalInfoConfig, TagCategoryResource};
+    use crate::models::{GlobalInfo, GlobalInfoConfig, SnapshotResource, TagCategoryResource};
     use chrono::Datelike;
 
     #[test]
@@ -1064,5 +1062,96 @@ mod tests {
         let tag_cat = serde_json::from_str::<TagCategoryResource>(input_str)
             .expect("Unable to parse tag category string");
         assert_eq!(tag_cat.name, Some("default".to_string()));
+    }
+
+    #[test]
+    fn test_parse_snapshot() {
+        let input_str = r#"
+        {
+            "operation": "merged",
+            "type": "pool",
+            "id": "2",
+            "user": {
+                "name": "integration_user",
+                "avatarUrl": "https://gravatar.com/avatar/6ab25d2babacc114ca560bff7c264d08?d=retro&s=300"
+            },
+            "data": [
+                "pool",
+                1
+            ],
+            "time": "2024-08-11T19:53:34.384644Z"
+        }
+        "#;
+        serde_json::from_str::<SnapshotResource>(input_str)
+            .expect("Could not parse merged snapshot resource");
+
+        let input_str = r#"
+        {
+            "operation": "modified",
+            "type": "pool_category",
+            "id": "cat_pool_category",
+            "user": {
+                "name": "integration_user",
+                "avatarUrl": "https://gravatar.com/avatar/6ab25d2babacc114ca560bff7c264d08?d=retro&s=300"
+            },
+            "data": {
+                "type": "object change",
+                "value": {
+                    "default": {
+                        "type": "primitive change",
+                        "old-value": false,
+                        "new-value": true
+                    }
+                }
+            },
+            "time": "2024-08-11T19:53:33.422437Z"
+        }
+        "#;
+        serde_json::from_str::<SnapshotResource>(input_str)
+            .expect("Could not parse modified snapshot resource");
+
+        let input_str = r#"
+        {
+            "operation": "deleted",
+            "type": "pool",
+            "id": "3",
+            "user": {
+                "name": "integration_user",
+                "avatarUrl": "https://gravatar.com/avatar/6ab25d2babacc114ca560bff7c264d08?d=retro&s=300"
+            },
+            "data": {
+                "names": [
+                    "dogs_pool"
+                ],
+                "category": "cat_pool_category",
+                "posts": []
+            },
+            "time": "2024-08-11T19:53:34.006828Z"
+        }
+        "#;
+        serde_json::from_str::<SnapshotResource>(input_str)
+            .expect("Could not parse deleted snapshot resource");
+
+        let input_str = r#"
+        {
+            "operation": "created",
+            "type": "pool",
+            "id": "1",
+            "user": {
+                "name": "integration_user",
+                "avatarUrl": "https://gravatar.com/avatar/6ab25d2babacc114ca560bff7c264d08?d=retro&s=300"
+            },
+            "data": {
+                "names": [
+                    "cats_pool"
+                ],
+                "category": "cat_pool_category",
+                "posts": []
+            },
+            "time": "2024-08-11T19:53:33.613959Z"
+        }
+        "#;
+        serde_json::from_str::<SnapshotResource>(input_str)
+            .expect("Could not parse created snapshot resource");
     }
 }
