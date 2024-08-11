@@ -1,3 +1,15 @@
+## v0.3.0 (2024-08-11)
+
+### Feat
+
+- **client**: adding post image and post thumbnail downloading methods
+
+### Fix
+
+- **client**: fixing API path for file downloads
+- **tokens**: fixing token encoding
+- **models**: fixing parsing of snapshot data
+
 ## v0.2.3 (2024-08-11)
 
 ### Fix

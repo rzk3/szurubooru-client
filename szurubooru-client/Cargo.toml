@@ -1,6 +1,6 @@
 [package]
 name = "szurubooru-client"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2021"
 authors = ["Scott Lyons <scottalyons@gmail.com>"]
 description = "A wrapper around the Szurubooru API, including type-safe Query and Sort tokens"
