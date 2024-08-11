@@ -52,6 +52,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     test_tags(&auth_client).await;
     test_creating_posts(&auth_client).await;
     test_pool_categories(&auth_client).await;
+    test_pools(&auth_client).await;
 
     Command::new("sh")
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -572,4 +573,98 @@ async fn test_pool_categories(client: &SzurubooruClient) {
         .set_default_pool_category(pool_cat.name.unwrap())
         .await
         .expect("Could not set default pool category");
+}
+
+#[instrument(skip(client))]
+async fn test_pools(client: &SzurubooruClient) {
+    info!("Testing post pools");
+    let pools = client
+        .request()
+        .list_pools(None)
+        .await
+        .expect("Could not list pools");
+    assert_eq!(pools.total, 0);
+
+    info!("Creating pools");
+    let create_pool = CreateUpdatePoolBuilder::default()
+        .names(vec!["cats_pool".to_string()])
+        .category("cat_pool_category".to_string())
+        .build()
+        .expect("Could not build pool creation object");
+    let cat_pool = client
+        .request()
+        .create_pool(&create_pool)
+        .await
+        .expect("Could not create pool");
+    let create_pool2 = CreateUpdatePoolBuilder::default()
+        .names(vec!["catz_pool".to_string()])
+        .category("cat_pool_category".to_string())
+        .build()
+        .expect("Could not build pool creation object");
+    let catz_pool = client
+        .request()
+        .create_pool(&create_pool2)
+        .await
+        .expect("Could not create pool");
+    let create_pool3 = CreateUpdatePoolBuilder::default()
+        .names(vec!["dogs_pool".to_string()])
+        .category("cat_pool_category".to_string())
+        .build()
+        .expect("Could not build pool creation object");
+    let dogs_pool = client
+        .request()
+        .create_pool(&create_pool3)
+        .await
+        .expect("Could not create pool");
+
+    info!("Getting pool");
+    let cat_pool = client
+        .request()
+        .get_pool(cat_pool.id.unwrap())
+        .await
+        .expect("Could not fetch pool");
+
+    info!("Deleting pool");
+    client
+        .request()
+        .delete_pool(dogs_pool.id.unwrap(), dogs_pool.version.unwrap())
+        .await
+        .expect("Could not delete pool");
+
+    info!("Updating pool");
+    let f4_results = client
+        .request()
+        .list_posts(Some(&vec![QueryToken::anonymous("cat")]))
+        .await
+        .expect("Could not list posts by tag cat");
+    let post_ids = f4_results
+        .results
+        .into_iter()
+        .map(|p| p.id.unwrap())
+        .collect::<Vec<u32>>();
+    let update_pool = CreateUpdatePoolBuilder::default()
+        .version(cat_pool.version.unwrap())
+        .posts(post_ids)
+        .description("All cat pictures all the time".to_string())
+        .build()
+        .expect("Could not build update object");
+    let cat_pool = client
+        .request()
+        .update_pool(cat_pool.id.unwrap(), &update_pool)
+        .await
+        .expect("Unable to update pool");
+
+    info!("Merging pools");
+    let merge_pool_obj = MergePoolBuilder::default()
+        .remove_version(catz_pool.version.unwrap())
+        .remove(catz_pool.id.unwrap())
+        .merge_to_version(cat_pool.version.unwrap())
+        .merge_to(cat_pool.id.unwrap())
+        .build()
+        .expect("Unable to build merge object");
+    let cat_pool = client
+        .request()
+        .merge_pools(&merge_pool_obj)
+        .await
+        .expect("Unable to merge pools");
 }
