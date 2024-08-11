@@ -2,6 +2,7 @@
 
 use crate::{errors::*, models::*, tokens::*};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use futures_util::{TryFutureExt, TryStreamExt};
 use reqwest::header::CONTENT_TYPE;
 use reqwest::{
     header::{HeaderMap, ACCEPT, AUTHORIZATION},
@@ -12,6 +13,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 use sha1::{Digest, Sha1};
 use std::fmt::{Display, Formatter};
+use std::io::{BufWriter, Write};
 use std::path::Path;
 use std::{fs::File, io::Read};
 use url::Url;
@@ -801,14 +803,20 @@ impl<'a> SzurubooruRequest<'a> {
         .await
     }
 
-    async fn get_post_content(&self, post_id: u32) -> SzurubooruResult<Response> {
+    async fn get_post_content(
+        &self,
+        post_id: u32,
+        get_thumbnail: bool,
+    ) -> SzurubooruResult<Response> {
         let post_resource = self.get_post(post_id).await?;
 
-        let data_url = format!(
-            "{}/{}",
-            self.client.base_url,
+        let content_path = if get_thumbnail {
+            post_resource.thumbnail_url.unwrap()
+        } else {
             post_resource.content_url.unwrap()
-        );
+        };
+
+        let data_url = format!("{}/{}", self.client.base_url, content_path);
 
         let req = self.prep_request(Method::GET, data_url, None);
         let request = req
@@ -824,25 +832,111 @@ impl<'a> SzurubooruRequest<'a> {
         self.handle_response(resp_res).await
     }
 
-    ///Downloads the given post ID's image as a stream of bytes
-    pub async fn get_post_content_bytestream(
+    ///Fetches the given post ID's image as a stream of bytes
+    pub async fn get_image_bytestream(
         &self,
         post_id: u32,
-    ) -> SzurubooruResult<
-        impl futures_util::Stream<Item = std::result::Result<bytes::Bytes, reqwest::Error>>,
-    > {
-        let content_response = self.get_post_content(post_id).await?;
-        Ok(content_response.bytes_stream())
+    ) -> SzurubooruResult<impl futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>>>
+    {
+        self.get_post_content(post_id, false)
+            .await
+            .map(|cr| cr.bytes_stream())
     }
 
-    ///Downloads the given post ID's image as a (Bytes)[bytes::Bytes] struct
-    pub async fn get_post_content_bytes(&self, post_id: u32) -> SzurubooruResult<bytes::Bytes> {
-        let content_response = self.get_post_content(post_id).await?;
+    ///Fetches the given post ID's thumbnail as a stream of bytes
+    pub async fn get_thumbnail_bytestream(
+        &self,
+        post_id: u32,
+    ) -> SzurubooruResult<impl futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>>>
+    {
+        self.get_post_content(post_id, true)
+            .await
+            .map(|cr| cr.bytes_stream())
+    }
+
+    ///Fetches the given post ID's image as a (Bytes)[bytes::Bytes] struct
+    pub async fn get_image_bytes(&self, post_id: u32) -> SzurubooruResult<bytes::Bytes> {
+        let content_response = self.get_post_content(post_id, false).await?;
 
         content_response
             .bytes()
             .await
             .map_err(SzurubooruClientError::RequestError)
+    }
+
+    ///Fetches the given post ID's thumbnail as a (Bytes)[bytes::Bytes] struct
+    pub async fn get_thumbnail_bytes(&self, post_id: u32) -> SzurubooruResult<bytes::Bytes> {
+        let content_response = self.get_post_content(post_id, true).await?;
+
+        content_response
+            .bytes()
+            .await
+            .map_err(SzurubooruClientError::RequestError)
+    }
+
+    async fn write_content_to_file<S>(
+        &self,
+        file: &mut File,
+        stream: &mut S,
+    ) -> SzurubooruResult<()>
+    where
+        S: futures_util::Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Unpin,
+    {
+        let mut writer = BufWriter::new(file);
+
+        while let Some(bytes) = stream
+            .try_next()
+            .await
+            .map_err(SzurubooruClientError::RequestError)?
+        {
+            writer
+                .write_all(bytes.as_ref())
+                .map_err(SzurubooruClientError::IOError)?;
+        }
+
+        Ok(())
+    }
+
+    ///Downloads a post's image and writes it to the given file handle
+    pub async fn download_image_to_file(
+        &self,
+        post_id: u32,
+        file: &mut File,
+    ) -> SzurubooruResult<()> {
+        let mut stream = self.get_image_bytestream(post_id).await?;
+        self.write_content_to_file(file, &mut stream).await
+    }
+
+    ///Downloads a post's image and writes it to the given path
+    pub async fn download_image_to_path(
+        &self,
+        post_id: u32,
+        path: impl AsRef<Path>,
+    ) -> SzurubooruResult<()> {
+        let mut stream = self.get_image_bytestream(post_id).await?;
+        let mut file = File::open(path.as_ref()).map_err(SzurubooruClientError::IOError)?;
+        self.write_content_to_file(&mut file, &mut stream).await
+    }
+
+    ///Downloads a post's thumbnail and writes it to the given file handle
+    pub async fn download_thumbnail_to_file(
+        &self,
+        post_id: u32,
+        file: &mut File,
+    ) -> SzurubooruResult<()> {
+        let mut stream = self.get_thumbnail_bytestream(post_id).await?;
+        self.write_content_to_file(file, &mut stream).await
+    }
+
+    ///Downloads a post's thumbnail and writes it to the given path
+    pub async fn download_thumbnail_to_path(
+        &self,
+        post_id: u32,
+        path: impl AsRef<Path>,
+    ) -> SzurubooruResult<()> {
+        let mut stream = self.get_thumbnail_bytestream(post_id).await?;
+        let mut file = File::open(path.as_ref()).map_err(SzurubooruClientError::IOError)?;
+        self.write_content_to_file(&mut file, &mut stream).await
     }
 
     /// Retrieves posts that look like the input image
