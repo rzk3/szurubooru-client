@@ -132,11 +132,13 @@ impl SzurubooruClient {
     /// enable you to actually make the requests.
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
+    /// # #[allow(unused)]
     /// # async {
     /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
     /// let new_request = client.request();
     /// let tag_categories = new_request.list_tag_categories().await;
-    /// # }
+    /// # };
+    /// # ()
     /// ```
     pub fn request(&self) -> SzurubooruRequest {
         SzurubooruRequest::new(self)
@@ -153,10 +155,12 @@ impl SzurubooruClient {
     /// (PostResource)[szurubooru_client::models::PostResource]
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
+    /// # #[allow(unused)]
     /// # async {
     /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
     /// let new_request = client.request().with_fields(vec!["version", "id", "content_url"]);
-    /// # }
+    /// # };
+    /// # ()
     /// ```
     pub fn with_fields<'a>(&'a self, fields: Vec<&'a str>) -> SzurubooruRequest {
         self.request().with_fields(fields)
@@ -169,13 +173,15 @@ impl SzurubooruClient {
     /// For example, to limit the number of pools returned by (list_pools)[SzurubooruRequest::list_pools]
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
+    /// # #[allow(unused)]
     /// # async {
     /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
     /// // Limit the number of results per page to 10
     /// let pools_result = client.with_limit(10)
     ///                         .list_pools(None)
     ///                         .await;
-    /// # }
+    /// # };
+    /// # ()
     /// ```
     pub fn with_limit(&self, limit: u32) -> SzurubooruRequest {
         self.request().with_limit(limit)
@@ -189,13 +195,15 @@ impl SzurubooruClient {
     /// For example, to offset the list of pools returned by (list_pools)[SzurubooruRequest::list_pools]
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
+    /// # #[allow(unused)]
     /// # async {
     /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
     /// // Skip the first ten pools in the list
     /// let pools_result = client.with_offset(10)
     ///                         .list_pools(None)
     ///                         .await;
-    /// # }
+    /// # };
+    /// # ()
     /// ```
     pub fn with_offset(&self, offset: u32) -> SzurubooruRequest {
         self.request().with_offset(offset)
@@ -232,10 +240,12 @@ impl<'a> SzurubooruRequest<'a> {
     /// (PostResource)[szurubooru_client::models::PostResource]
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
+    /// # #[allow(unused)]
     /// # async {
     /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
     /// let new_request = client.request().with_fields(vec!["version", "id", "content_url"]);
-    /// # }
+    /// # };
+    /// # ()
     /// ```
     pub fn with_fields(mut self, fields: Vec<&'a str>) -> Self {
         self.fields = Some(fields);
@@ -249,13 +259,15 @@ impl<'a> SzurubooruRequest<'a> {
     /// For example, to limit the number of pools returned by (list_pools)[SzurubooruRequest::list_pools]
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
+    /// # #[allow(unused)]
     /// # async {
     /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
     /// // Limit the number of results per page to 10
     /// let pools_result = client.with_limit(10)
     ///                         .list_pools(None)
     ///                         .await;
-    /// # }
+    /// # };
+    /// # ()
     /// ```
     pub fn with_limit(mut self, limit: u32) -> Self {
         self.limit = Some(limit);
@@ -270,13 +282,15 @@ impl<'a> SzurubooruRequest<'a> {
     /// For example, to offset the list of pools returned by (list_pools)[SzurubooruRequest::list_pools]
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
+    /// # #[allow(unused)]
     /// # async {
     /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
     /// // Skip the first ten pools in the list
     /// let pools_result = client.with_offset(10)
     ///                         .list_pools(None)
     ///                         .await;
-    /// # }
+    /// # };
+    /// # ()
     /// ```
     pub fn with_offset(mut self, offset: u32) -> Self {
         self.offset = Some(offset);
