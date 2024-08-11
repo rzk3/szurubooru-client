@@ -355,7 +355,7 @@ async fn test_creating_posts(client: &SzurubooruClient) {
     let folly1_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly1.jpg");
     let mut folly1_file =
         File::open(&folly1_path).expect(&format!("Could not open file {folly1_path:?}"));
-    let folly1_post = client
+    let _folly1_post = client
         .request()
         .create_post_from_file(&mut folly1_file, None, "folly1.jpg", &folly1_obj)
         .await
@@ -372,7 +372,7 @@ async fn test_creating_posts(client: &SzurubooruClient) {
         .build()
         .expect("Could not build second upload object");
     let folly2_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly2.jpg");
-    let folly2_post = client
+    let _folly2_post = client
         .request()
         .create_post_from_file_path(folly2_path, None::<String>, &folly2_obj)
         .await
@@ -580,7 +580,7 @@ async fn test_pool_categories(client: &SzurubooruClient) {
         .expect("Could not delete pool category");
 
     info!("Setting default pool category");
-    let pool_cat = client
+    let _pool_cat = client
         .request()
         .set_default_pool_category(pool_cat.name.unwrap())
         .await
@@ -674,7 +674,7 @@ async fn test_pools(client: &SzurubooruClient) {
         .merge_to(cat_pool.id.unwrap())
         .build()
         .expect("Unable to build merge object");
-    let cat_pool = client
+    let _cat_pool = client
         .request()
         .merge_pools(&merge_pool_obj)
         .await
@@ -686,7 +686,7 @@ async fn test_comments(client: &SzurubooruClient) {
     info!("Testing comments");
 
     info!("Listing comments");
-    let comment_list = client
+    let _comment_list = client
         .request()
         .list_comments(None)
         .await
