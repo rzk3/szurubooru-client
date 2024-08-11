@@ -835,10 +835,13 @@ impl<'a> SzurubooruRequest<'a> {
     pub async fn reverse_search_file(
         &self,
         file: &mut File,
+        file_path: impl AsRef<str>,
     ) -> SzurubooruResult<ImageSearchResult> {
         let request = self.prep_request(Method::POST, "/posts/reverse-search", None);
 
-        let image_part = self.part_from_file(file)?;
+        let image_part = self
+            .part_from_file(file)?
+            .file_name(file_path.as_ref().to_string());
         let form = Form::new().part("content", image_part);
 
         self.handle_request(request.multipart(form)).await
@@ -849,9 +852,9 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         file_path: impl AsRef<Path>,
     ) -> SzurubooruResult<ImageSearchResult> {
-        let mut file = File::open(file_path).map_err(SzurubooruClientError::IOError)?;
-
-        self.reverse_search_file(&mut file).await
+        let mut file = File::open(&file_path).map_err(SzurubooruClientError::IOError)?;
+        let filename = file_path.as_ref().file_name().unwrap().to_str().unwrap();
+        self.reverse_search_file(&mut file, filename).await
     }
 
     /// Searches for an exact match of a file based on the SHA1 checksum

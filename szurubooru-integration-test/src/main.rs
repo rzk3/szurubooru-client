@@ -404,6 +404,14 @@ async fn test_creating_posts(client: &SzurubooruClient) {
         .expect("Could not search for post by file path");
     assert_eq!(matching_posts.results.first().unwrap(), &folly3_post);
 
+    info!("Reverse searching");
+    let matching_posts = client
+        .request()
+        .reverse_search_file_path(&folly3_path)
+        .await
+        .expect("Could not reverse image search");
+    assert!(matching_posts.exact_post.is_some());
+
     info!("Testing temporary upload");
     let folly4_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly4.jpg");
     let folly4_temp_upload = client
