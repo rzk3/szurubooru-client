@@ -143,11 +143,11 @@ impl QueryToken {
 impl Display for QueryToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let suffix = if !self.value.is_empty() {
-            format!(":{}", encode(&self.value))
+            format!(":{}", &self.value)
         } else {
             "".to_string()
         };
-        write!(f, "{}{}", encode(&self.key), suffix)
+        write!(f, "{}{}", &self.key, suffix)
     }
 }
 
@@ -609,9 +609,6 @@ mod tests {
             QueryToken::sort(PostSortToken::Random),
         ];
 
-        assert_eq!(
-            query_vec.to_query_string(),
-            "comment-count%3A1%20sort%3Arandom"
-        );
+        assert_eq!(query_vec.to_query_string(), "comment-count:1 sort:random");
     }
 }
