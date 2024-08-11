@@ -2,12 +2,14 @@ use chrono::Months;
 use sha1::{Digest, Sha1};
 use std::error::Error;
 use std::fs::File;
+use std::io::{Seek, SeekFrom};
 use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 use szurubooru_client::models::*;
 use szurubooru_client::tokens::{CommentNamedToken, QueryToken};
 use szurubooru_client::*;
+use tempfile::tempfile;
 use tokio::process::Command;
 use tracing::level_filters::LevelFilter;
 use tracing::{info, instrument};
@@ -58,6 +60,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     test_comments(&auth_client).await;
     test_users(&auth_client).await;
     test_snapshots(&auth_client).await;
+    test_downloads(&auth_client).await;
 
     Command::new("sh")
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -883,4 +886,56 @@ async fn test_snapshots(client: &SzurubooruClient) {
         .await
         .expect("Could not list snapshots");
     assert!(snap_list.total > 0);
+}
+
+#[instrument(skip(client))]
+async fn test_downloads(client: &SzurubooruClient) {
+    info!("Testing image download");
+
+    let folly3_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly3.jpg");
+
+    let mut f3_hasher = Sha1::new();
+
+    let mut f3_file = File::open(&folly3_path).expect("Unable to open folly3.jpg");
+
+    std::io::copy(&mut f3_file, &mut f3_hasher).expect("Unable to hash folly3.jpg");
+
+    let f3_hash = f3_hasher.finalize();
+
+    let f3post = client
+        .request()
+        .reverse_search_file_path(folly3_path)
+        .await
+        .expect("Unable to reverse search for file")
+        .exact_post
+        .expect("Unable to find exact post for folly3.jpg");
+
+    let mut dl_file = tempfile().expect("Could not create temporary file");
+    //let mut dl_thumb_file = tempfile().expect("Could not create temporary thumbnail file");
+
+    let dlfolly3_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("dlfolly3.jpg");
+    let mut dl_file = File::options()
+        .create(true)
+        .truncate(true)
+        .read(true)
+        .write(true)
+        .open(dlfolly3_path)
+        .expect("unable to open download file");
+
+    client
+        .request()
+        .download_image_to_file(f3post.id.unwrap(), &mut dl_file)
+        .await
+        .expect("Could not download to temporary file");
+    dl_file
+        .seek(SeekFrom::Start(0))
+        .expect("Could not rewind file");
+
+    let mut dl_f3_hasher = Sha1::new();
+
+    std::io::copy(&mut dl_file, &mut dl_f3_hasher).expect("Unable to hash folly3.jpg");
+
+    let dl_f3_hash = dl_f3_hasher.finalize();
+
+    assert_eq!(f3_hash, dl_f3_hash);
 }

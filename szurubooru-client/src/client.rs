@@ -310,7 +310,7 @@ impl<'a> SzurubooruRequest<'a> {
         T: AsRef<str> + Display,
     {
         let mut req_url = self.client.base_url.clone();
-        req_url.set_path(&format!("/api{}", path.as_ref()));
+        req_url.set_path(path.as_ref());
 
         if let Some(query_vec) = query {
             let mut qpm = req_url.query_pairs_mut();
@@ -416,7 +416,7 @@ impl<'a> SzurubooruRequest<'a> {
     pub async fn list_tag_categories(
         &self,
     ) -> SzurubooruResult<UnpagedSearchResult<TagCategoryResource>> {
-        self.do_request(Method::GET, "/tag-categories", None, None::<&String>)
+        self.do_request(Method::GET, "/api/tag-categories", None, None::<&String>)
             .await
     }
 
@@ -427,7 +427,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         new_cat: &CreateUpdateTagCategory,
     ) -> SzurubooruResult<TagCategoryResource> {
-        self.do_request(Method::POST, "/tag-categories", None, Some(new_cat))
+        self.do_request(Method::POST, "/api/tag-categories", None, Some(new_cat))
             .await
     }
 
@@ -442,7 +442,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/tag-category/{name}");
+        let path = format!("/api/tag-category/{name}");
         self.do_request(Method::PUT, &path, None, Some(update_tag_cat))
             .await
     }
@@ -452,7 +452,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/tag-category/{name}");
+        let path = format!("/api/tag-category/{name}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
@@ -462,7 +462,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/tag-category/{name}");
+        let path = format!("/api/tag-category/{name}");
         let version_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
@@ -475,7 +475,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/tag-category/{name}/default");
+        let path = format!("/api/tag-category/{name}/default");
         self.do_request(Method::PUT, &path, None, None::<&String>)
             .await
     }
@@ -487,7 +487,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         query: Option<&Vec<QueryToken>>,
     ) -> SzurubooruResult<PagedSearchResult<TagResource>> {
-        self.do_request(Method::GET, "/tags", query, None::<&String>)
+        self.do_request(Method::GET, "/api/tags", query, None::<&String>)
             .await
     }
 
@@ -499,7 +499,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// implications, no suggestions, one name and their category is set to the first tag category
     /// found. If there are no tag categories established yet, an error will be thrown.
     pub async fn create_tag(&self, new_tag: &CreateUpdateTag) -> SzurubooruResult<TagResource> {
-        self.do_request(Method::POST, "/tags", None, Some(new_tag))
+        self.do_request(Method::POST, "/api/tags", None, Some(new_tag))
             .await
     }
 
@@ -518,7 +518,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/tag/{name}");
+        let path = format!("/api/tag/{name}");
         self.do_request(Method::PUT, &path, None, Some(update_tag))
             .await
     }
@@ -528,7 +528,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/tag/{name}");
+        let path = format!("/api/tag/{name}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
@@ -538,7 +538,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/tag/{name}");
+        let path = format!("/api/tag/{name}");
         let version_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
@@ -549,7 +549,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// target tag. Other tag properties such as category and aliases do not get transferred
     /// and are discarded.
     pub async fn merge_tag(&self, merge_opts: &MergeTags) -> SzurubooruResult<TagResource> {
-        self.do_request(Method::POST, "/tag-merge", None, Some(merge_opts))
+        self.do_request(Method::POST, "/api/tag-merge", None, Some(merge_opts))
             .await
     }
 
@@ -564,7 +564,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/tag-siblings/{name}");
+        let path = format!("/api/tag-siblings/{name}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
@@ -577,7 +577,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         query: Option<&Vec<QueryToken>>,
     ) -> SzurubooruResult<PagedSearchResult<PostResource>> {
-        self.do_request(Method::GET, "/posts", query, None::<&String>)
+        self.do_request(Method::GET, "/api/posts", query, None::<&String>)
             .await
     }
 
@@ -605,7 +605,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         new_post: &CreateUpdatePost,
     ) -> SzurubooruResult<PostResource> {
-        self.create_update_post_from_url("/posts", Method::POST, new_post)
+        self.create_update_post_from_url("/api/posts", Method::POST, new_post)
             .await
     }
 
@@ -617,7 +617,7 @@ impl<'a> SzurubooruRequest<'a> {
         post_id: u32,
         update_post: &CreateUpdatePost,
     ) -> SzurubooruResult<PostResource> {
-        let path = format!("/post/{post_id}");
+        let path = format!("/api/post/{post_id}");
         self.create_update_post_from_url(&path, Method::PUT, update_post)
             .await
     }
@@ -684,7 +684,7 @@ impl<'a> SzurubooruRequest<'a> {
             Some(file),
             thumbnail,
             Some(file_name),
-            "/posts",
+            "/api/posts",
             Method::POST,
             new_post,
         )
@@ -723,7 +723,7 @@ impl<'a> SzurubooruRequest<'a> {
             None,
             None,
             None::<String>,
-            "/posts",
+            "/api/posts",
             Method::POST,
             new_post,
         )
@@ -741,7 +741,7 @@ impl<'a> SzurubooruRequest<'a> {
         file_name: impl AsRef<str>,
         update_post: &CreateUpdatePost,
     ) -> SzurubooruResult<PostResource> {
-        let path = format!("/posts/{post_id}");
+        let path = format!("/api/post/{post_id}");
         self.create_update_post_from_file(
             file,
             thumbnail,
@@ -816,9 +816,7 @@ impl<'a> SzurubooruRequest<'a> {
             post_resource.content_url.unwrap()
         };
 
-        let data_url = format!("{}/{}", self.client.base_url, content_path);
-
-        let req = self.prep_request(Method::GET, data_url, None);
+        let req = self.prep_request(Method::GET, content_path, None);
         let request = req
             .build()
             .map_err(SzurubooruClientError::RequestBuilderError)?;
@@ -872,6 +870,26 @@ impl<'a> SzurubooruRequest<'a> {
             .bytes()
             .await
             .map_err(SzurubooruClientError::RequestError)
+    }
+
+    ///Gets a post's image's URL
+    pub async fn get_image_url(&self, post_id: u32) -> SzurubooruResult<String> {
+        let post_resource = self.get_post(post_id).await?;
+        Ok(format!(
+            "{}{}",
+            self.client.base_url,
+            post_resource.content_url.unwrap()
+        ))
+    }
+
+    ///Gets a post's image's URL
+    pub async fn get_thumbnail_url(&self, post_id: u32) -> SzurubooruResult<String> {
+        let post_resource = self.get_post(post_id).await?;
+        Ok(format!(
+            "{}{}",
+            self.client.base_url,
+            post_resource.thumbnail_url.unwrap()
+        ))
     }
 
     async fn write_content_to_file<S>(
@@ -945,7 +963,7 @@ impl<'a> SzurubooruRequest<'a> {
         file: &mut File,
         file_path: impl AsRef<str>,
     ) -> SzurubooruResult<ImageSearchResult> {
-        let request = self.prep_request(Method::POST, "/posts/reverse-search", None);
+        let request = self.prep_request(Method::POST, "/api/posts/reverse-search", None);
 
         let image_part = self
             .part_from_file(file)?
@@ -991,21 +1009,21 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Retrieves information about an existing post.
     pub async fn get_post(&self, post_id: u32) -> SzurubooruResult<PostResource> {
-        let path = format!("/post/{post_id}");
+        let path = format!("/api/post/{post_id}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
 
     /// Retrieves information about posts that are before or after an existing post.
     pub async fn get_around_post(&self, post_id: u32) -> SzurubooruResult<AroundPostResult> {
-        let path = format!("/post/{post_id}/around");
+        let path = format!("/api/post/{post_id}/around");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
 
     /// Deletes existing post. Related posts and tags are kept.
     pub async fn delete_post(&self, post_id: u32, version: u32) -> SzurubooruResult<()> {
-        let path = format!("/post/{post_id}");
+        let path = format!("/api/post/{post_id}");
         let version_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
@@ -1020,28 +1038,28 @@ impl<'a> SzurubooruRequest<'a> {
     /// values do not get transferred and are discarded.
     ///
     pub async fn merge_post(&self, merge_opts: &MergePost) -> SzurubooruResult<PostResource> {
-        self.do_request(Method::POST, "/post-merge/", None, Some(merge_opts))
+        self.do_request(Method::POST, "/api/post-merge/", None, Some(merge_opts))
             .await
     }
 
     /// Updates score of authenticated user for given post. Valid scores are -1, 0 and 1.
     pub async fn rate_post(&self, post_id: u32, score: i8) -> SzurubooruResult<PostResource> {
         let rating_obj = RateResource { score };
-        let path = format!("/post/{post_id}/score");
+        let path = format!("/api/post/{post_id}/score");
         self.do_request(Method::PUT, &path, None, Some(&rating_obj))
             .await
     }
 
     /// Marks the post as favorite for authenticated user.
     pub async fn favorite_post(&self, post_id: u32) -> SzurubooruResult<PostResource> {
-        let path = format!("/post/{post_id}/favorite");
+        let path = format!("/api/post/{post_id}/favorite");
         self.do_request(Method::POST, &path, None, None::<&String>)
             .await
     }
 
     /// Unmarks the post as favorite for authenticated user.
     pub async fn unfavorite_post(&self, post_id: u32) -> SzurubooruResult<PostResource> {
-        let path = format!("/post/{post_id}/favorite");
+        let path = format!("/api/post/{post_id}/favorite");
         self.do_request(Method::DELETE, &path, None, None::<&String>)
             .await
     }
@@ -1051,14 +1069,14 @@ impl<'a> SzurubooruRequest<'a> {
     /// with setting featured post - most of the time, you'd want to use query global info which
     /// contains more information.
     pub async fn get_featured_post(&self) -> SzurubooruResult<Option<PostResource>> {
-        self.do_request(Method::GET, "/featured-post", None, None::<&String>)
+        self.do_request(Method::GET, "/api/featured-post", None, None::<&String>)
             .await
     }
 
     /// Features a post on the main page
     pub async fn set_featured_post(&self, post_id: u32) -> SzurubooruResult<PostResource> {
         let id_object = PostId { id: post_id };
-        self.do_request(Method::POST, "/featured-post", None, Some(&id_object))
+        self.do_request(Method::POST, "/api/featured-post", None, Some(&id_object))
             .await
     }
 
@@ -1066,7 +1084,7 @@ impl<'a> SzurubooruRequest<'a> {
     pub async fn list_pool_categories(
         &self,
     ) -> SzurubooruResult<UnpagedSearchResult<PoolCategoryResource>> {
-        self.do_request(Method::GET, "/pool-categories", None, None::<&String>)
+        self.do_request(Method::GET, "/api/pool-categories", None, None::<&String>)
             .await
     }
 
@@ -1077,7 +1095,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         new_cat: &CreateUpdatePoolCategory,
     ) -> SzurubooruResult<PoolCategoryResource> {
-        self.do_request(Method::POST, "/pool-categories", None, Some(new_cat))
+        self.do_request(Method::POST, "/api/pool-categories", None, Some(new_cat))
             .await
     }
 
@@ -1093,7 +1111,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/pool-category/{category_name}");
+        let path = format!("/api/pool-category/{category_name}");
         self.do_request(Method::PUT, &path, None, Some(update_cat))
             .await
     }
@@ -1106,7 +1124,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/pool-category/{category_name}");
+        let path = format!("/api/pool-category/{category_name}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
@@ -1120,7 +1138,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/pool-category/{category_name}");
+        let path = format!("/api/pool-category/{category_name}");
         let resource_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&resource_obj))
             .await
@@ -1136,7 +1154,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/pool-category/{category_name}/default");
+        let path = format!("/api/pool-category/{category_name}/default");
         self.do_request(Method::PUT, &path, None, None::<&String>)
             .await
     }
@@ -1147,7 +1165,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         query: Option<&Vec<QueryToken>>,
     ) -> SzurubooruResult<PagedSearchResult<PoolResource>> {
-        self.do_request(Method::GET, "/pools", query, None::<&String>)
+        self.do_request(Method::GET, "/api/pools", query, None::<&String>)
             .await
     }
 
@@ -1160,7 +1178,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         create_update_pool: &CreateUpdatePool,
     ) -> SzurubooruResult<PoolResource> {
-        self.do_request(Method::POST, "/pool", None, Some(create_update_pool))
+        self.do_request(Method::POST, "/api/pool", None, Some(create_update_pool))
             .await
     }
 
@@ -1178,14 +1196,14 @@ impl<'a> SzurubooruRequest<'a> {
         pool_id: u32,
         create_update_pool: &CreateUpdatePool,
     ) -> SzurubooruResult<PoolResource> {
-        let path = format!("/pool/{pool_id}");
+        let path = format!("/api/pool/{pool_id}");
         self.do_request(Method::PUT, &path, None, Some(create_update_pool))
             .await
     }
 
     /// Retrieves information about an existing pool.
     pub async fn get_pool(&self, pool_id: u32) -> SzurubooruResult<PoolResource> {
-        let path = format!("/pool/{pool_id}");
+        let path = format!("/api/pool/{pool_id}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
@@ -1193,7 +1211,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// Deletes existing pool. All posts in the pool will only have their relation to the pool
     /// removed.
     pub async fn delete_pool(&self, pool_id: u32, version: u32) -> SzurubooruResult<()> {
-        let path = format!("/pool/{pool_id}");
+        let path = format!("/api/pool/{pool_id}");
         let version_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
@@ -1203,7 +1221,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// Removes source pool and merges all of its posts with the target pool. Other pool properties
     /// such as category and aliases do not get transferred and are discarded.
     pub async fn merge_pools(&self, merge_pool: &MergePool) -> SzurubooruResult<PoolResource> {
-        self.do_request(Method::POST, "/pool-merge", None, Some(merge_pool))
+        self.do_request(Method::POST, "/api/pool-merge", None, Some(merge_pool))
             .await
     }
 
@@ -1213,7 +1231,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         query: Option<&Vec<QueryToken>>,
     ) -> SzurubooruResult<PagedSearchResult<CommentResource>> {
-        self.do_request(Method::GET, "/comments", query, None::<&String>)
+        self.do_request(Method::GET, "/api/comments", query, None::<&String>)
             .await
     }
 
@@ -1222,7 +1240,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         new_comment: &CreateUpdateComment,
     ) -> SzurubooruResult<CommentResource> {
-        self.do_request(Method::POST, "/comments", None, Some(new_comment))
+        self.do_request(Method::POST, "/api/comments", None, Some(new_comment))
             .await
     }
 
@@ -1232,21 +1250,21 @@ impl<'a> SzurubooruRequest<'a> {
         comment_id: u32,
         update_comment: &CreateUpdateComment,
     ) -> SzurubooruResult<CommentResource> {
-        let path = format!("/comment/{comment_id}");
+        let path = format!("/api/comment/{comment_id}");
         self.do_request(Method::PUT, &path, None, Some(update_comment))
             .await
     }
 
     /// Retrieves information about an existing comment
     pub async fn get_comment(&self, comment_id: u32) -> SzurubooruResult<CommentResource> {
-        let path = format!("/comment/{comment_id}");
+        let path = format!("/api/comment/{comment_id}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
 
     /// Deletes existing comment
     pub async fn delete_comment(&self, comment_id: u32, version: u32) -> SzurubooruResult<()> {
-        let path = format!("/comment/{comment_id}");
+        let path = format!("/api/comment/{comment_id}");
         let version_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
@@ -1259,7 +1277,7 @@ impl<'a> SzurubooruRequest<'a> {
         comment_id: u32,
         score: i8,
     ) -> SzurubooruResult<CommentResource> {
-        let path = format!("/comment/{comment_id}/score");
+        let path = format!("/api/comment/{comment_id}/score");
         let rating = RateResource { score };
         self.do_request(Method::PUT, &path, None, Some(&rating))
             .await
@@ -1273,7 +1291,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         query: Option<&Vec<QueryToken>>,
     ) -> SzurubooruResult<PagedSearchResult<UserResource>> {
-        self.do_request(Method::GET, "/users", query, None::<&String>)
+        self.do_request(Method::GET, "/api/users", query, None::<&String>)
             .await
     }
 
@@ -1316,7 +1334,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// become an administrator, whereas subsequent users will be given the rank indicated by
     /// `default_rank` in the server's configuration.
     pub async fn create_user(&self, new_user: &CreateUpdateUser) -> SzurubooruResult<UserResource> {
-        self.do_request(Method::POST, "/users", None, Some(new_user))
+        self.do_request(Method::POST, "/api/users", None, Some(new_user))
             .await
     }
 
@@ -1331,7 +1349,7 @@ impl<'a> SzurubooruRequest<'a> {
     ) -> SzurubooruResult<UserResource> {
         self.create_update_user(
             Method::POST,
-            "/users",
+            "/api/users",
             new_user,
             Some(avatar),
             Some(file_name),
@@ -1351,7 +1369,7 @@ impl<'a> SzurubooruRequest<'a> {
         let filename = avatar_path.as_ref().file_name().unwrap().to_str().unwrap();
         self.create_update_user(
             Method::POST,
-            "/users",
+            "/api/users",
             new_user,
             Some(&mut file),
             Some(filename),
@@ -1374,7 +1392,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user/{name}");
+        let path = format!("/api/user/{name}");
         self.do_request(Method::PUT, path, None, Some(update_user))
             .await
     }
@@ -1392,7 +1410,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user/{name}");
+        let path = format!("/api/user/{name}");
         self.create_update_user(
             Method::PUT,
             &path,
@@ -1415,7 +1433,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user/{name}");
+        let path = format!("/api/user/{name}");
         let mut file = File::open(&avatar_path).map_err(SzurubooruClientError::IOError)?;
         let filename = avatar_path.as_ref().file_name().unwrap().to_str().unwrap();
         self.create_update_user(
@@ -1433,9 +1451,22 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user/{name}");
+        let path = format!("/api/user/{name}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
+    }
+
+    /// Retrieves the user's avatar URL
+    pub async fn get_user_avatar_url<T>(&self, name: T) -> SzurubooruResult<String>
+    where
+        T: AsRef<str> + Display,
+    {
+        let user = self.get_user(name).await?;
+        Ok(format!(
+            "{}{}",
+            self.client.base_url,
+            user.avatar_url.unwrap()
+        ))
     }
 
     /// Deletes existing user
@@ -1443,7 +1474,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user/{name}");
+        let path = format!("/api/user/{name}");
         let version_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
@@ -1458,7 +1489,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user-tokens/{name}");
+        let path = format!("/api/user-tokens/{name}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
@@ -1473,7 +1504,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user-token/{name}");
+        let path = format!("/api/user-token/{name}");
         self.do_request(Method::POST, &path, None, Some(create_token))
             .await
     }
@@ -1490,7 +1521,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user-token/{name}/{token}");
+        let path = format!("/api/user-token/{name}/{token}");
         self.do_request(Method::PUT, &path, None, Some(update_token))
             .await
     }
@@ -1507,7 +1538,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user-token/{name}/{token}");
+        let path = format!("/api/user-token/{name}/{token}");
         let version_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
@@ -1524,7 +1555,7 @@ impl<'a> SzurubooruRequest<'a> {
         T: AsRef<str> + Display,
     {
         let encoded = STANDARD.encode(email_or_name.as_ref().as_bytes());
-        let path = format!("/password-reset/{encoded}");
+        let path = format!("/api/password-reset/{encoded}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
@@ -1540,7 +1571,7 @@ impl<'a> SzurubooruRequest<'a> {
         T: AsRef<str> + Display,
     {
         let encoded = STANDARD.encode(email_or_name.as_ref().as_bytes());
-        let path = format!("/password-reset/{encoded}");
+        let path = format!("/api/password-reset/{encoded}");
         let token_obj = PasswordResetToken {
             token: token.as_ref().to_string(),
         };
@@ -1555,7 +1586,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         query: Option<&Vec<QueryToken>>,
     ) -> SzurubooruResult<PagedSearchResult<SnapshotResource>> {
-        self.do_request(Method::GET, "/snapshots", query, None::<&String>)
+        self.do_request(Method::GET, "/api/snapshots", query, None::<&String>)
             .await
     }
 
@@ -1566,7 +1597,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// taken directly from the server config, with the exception of privilege array keys being
     /// converted to lower camel case to match the API convention.
     pub async fn get_global_info(&self) -> SzurubooruResult<GlobalInfo> {
-        self.do_request(Method::GET, "/info", None, None::<&String>)
+        self.do_request(Method::GET, "/api/info", None, None::<&String>)
             .await
     }
 
@@ -1578,7 +1609,7 @@ impl<'a> SzurubooruRequest<'a> {
         file: &mut File,
         file_name: impl AsRef<str>,
     ) -> SzurubooruResult<TemporaryFileUpload> {
-        let request = self.prep_request(Method::POST, "/uploads", None);
+        let request = self.prep_request(Method::POST, "/api/uploads", None);
 
         let content_part = self
             .part_from_file(file)?
