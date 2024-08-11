@@ -510,7 +510,7 @@ pub struct UserResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Builder)]
-#[builder(setter(into, strip_option))]
+#[builder(setter(strip_option))]
 #[serde(rename_all = "camelCase")]
 /// `struct` used to create or update a user resource. The version field is only used when
 /// updating an existing resource

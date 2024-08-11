@@ -1421,6 +1421,7 @@ dependencies = [
 name = "szurubooru-integration-test"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "szurubooru-client",
  "tokio",
  "tracing",

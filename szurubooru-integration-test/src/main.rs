@@ -1,3 +1,4 @@
+use chrono::Months;
 use std::error::Error;
 use std::fs::File;
 use std::path::Path;
@@ -29,8 +30,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let anon_client = start_instance().await;
 
     let create_user = CreateUpdateUserBuilder::default()
-        .name("integration_user")
-        .password("integration_password")
+        .name("integration_user".to_string())
+        .password("integration_password".to_string())
         .rank(UserRank::Administrator)
         .avatar_style(UserAvatarStyle::Gravatar)
         .build()
@@ -54,6 +55,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     test_pool_categories(&auth_client).await;
     test_pools(&auth_client).await;
     test_comments(&auth_client).await;
+    test_users(&auth_client).await;
 
     Command::new("sh")
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -390,9 +392,17 @@ async fn test_creating_posts(client: &SzurubooruClient) {
     let folly3_thumbnail = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly3_thumb.jpg");
     let folly3_post = client
         .request()
-        .create_post_from_file_path(folly3_path, Some(folly3_thumbnail), &folly3_obj)
+        .create_post_from_file_path(&folly3_path, Some(folly3_thumbnail), &folly3_obj)
         .await
         .expect("Could not create post with thumbnail");
+
+    info!("Searching for post by image");
+    let matching_posts = client
+        .request()
+        .posts_for_file_path(&folly3_path)
+        .await
+        .expect("Could not search for post by file path");
+    assert_eq!(matching_posts.results.first().unwrap(), &folly3_post);
 
     info!("Testing temporary upload");
     let folly4_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly4.jpg");
@@ -504,6 +514,7 @@ async fn test_creating_posts(client: &SzurubooruClient) {
         .get_featured_post()
         .await
         .expect("Could not get featured post");
+
     assert!(featured_post.is_some());
 }
 
@@ -725,10 +736,6 @@ async fn test_comments(client: &SzurubooruClient) {
         .expect("Unable to fetch comment");
 
     info!("Getting all comments for post");
-    let query_vec = vec![QueryToken::token(
-        CommentNamedToken::Post,
-        post_id.to_string(),
-    )];
     let comment_list = client
         .request()
         //.list_comments(None)
@@ -754,4 +761,103 @@ async fn test_comments(client: &SzurubooruClient) {
         .delete_comment(comment.id.unwrap(), comment.version.unwrap())
         .await
         .expect("Could not delete comment");
+}
+
+#[instrument(skip(client))]
+async fn test_users(client: &SzurubooruClient) {
+    info!("Testing users");
+
+    info!("Listing users");
+    let user_list = client
+        .request()
+        .list_users(None)
+        .await
+        .expect("Could not list users");
+    assert_eq!(user_list.total, 1);
+
+    // Create user is already tested above
+    info!("Creating user with avatar");
+    let avatar_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("avatar.jpg");
+    let create_user = CreateUpdateUserBuilder::default()
+        .name("iu2".to_string())
+        .password("ipass2".to_string())
+        .rank(UserRank::Regular)
+        .avatar_style(UserAvatarStyle::Manual)
+        .build()
+        .expect("Could not create user creation object");
+    let user_obj = client
+        .request()
+        .create_user_with_avatar_path(avatar_path, &create_user)
+        .await
+        .expect("Could not create user");
+
+    info!("Updating user");
+    let update_user = CreateUpdateUserBuilder::default()
+        .version(user_obj.version.unwrap())
+        .rank(UserRank::Restricted)
+        .build()
+        .expect("Could not create user update object");
+    let user_obj = client
+        .request()
+        .update_user(user_obj.name.unwrap(), &update_user)
+        .await
+        .expect("Could not update user");
+
+    info!("Getting user");
+    let user_obj = client
+        .request()
+        .get_user(user_obj.name.unwrap())
+        .await
+        .expect("Could not get user");
+
+    info!("Deleting user");
+    client
+        .request()
+        .delete_user(user_obj.name.unwrap(), user_obj.version.unwrap())
+        .await
+        .expect("Could not delete user");
+
+    let username = "integration_user".to_string();
+    info!("Listing user tokens");
+    let tokens = client
+        .request()
+        .list_user_tokens(&username)
+        .await
+        .expect("Could not list user tokens");
+    assert!(tokens.results.is_empty());
+
+    info!("Creating user token");
+    let create_token = CreateUpdateUserAuthTokenBuilder::default()
+        .note("My token")
+        .enabled(true)
+        .build()
+        .expect("Could not create token creation object");
+    let token = client
+        .request()
+        .create_user_token(&username, &create_token)
+        .await
+        .expect("Could not create auth token");
+
+    info!("Updating user token");
+    let new_expiration = chrono::offset::Utc::now()
+        .checked_add_months(Months::new(1))
+        .unwrap();
+    let update_token = CreateUpdateUserAuthTokenBuilder::default()
+        .version(token.version.unwrap())
+        .expiration_time(new_expiration)
+        .build()
+        .expect("Could not create token update object");
+
+    let token = client
+        .request()
+        .update_user_token(&username, &token.token.unwrap(), &update_token)
+        .await
+        .expect("Could not update token");
+
+    info!("Deleting user token");
+    client
+        .request()
+        .delete_user_token(username, token.token.unwrap(), token.version.unwrap())
+        .await
+        .expect("Could not delete token");
 }

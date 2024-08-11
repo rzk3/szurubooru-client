@@ -13,10 +13,7 @@ use serde_json::Value;
 use sha1::{Digest, Sha1};
 use std::fmt::{Display, Formatter};
 use std::path::Path;
-use std::{
-    fs::File,
-    io::{BufReader, Read},
-};
+use std::{fs::File, io::Read};
 use url::Url;
 
 ///
@@ -324,7 +321,7 @@ impl<'a> SzurubooruRequest<'a> {
         // This doesn't detect the required `mut` for some reason
         #[allow(unused_mut)]
         let mut req = self.client.client.request(method, req_url);
-        let req = match &self.client.auth {
+        match &self.client.auth {
             SzurubooruAuth::TokenAuth(t) => {
                 let mut header_map = HeaderMap::new();
                 header_map.append(AUTHORIZATION, t.parse().unwrap());
@@ -333,8 +330,7 @@ impl<'a> SzurubooruRequest<'a> {
             }
             SzurubooruAuth::BasicAuth(u, p) => req.basic_auth(u, Some(p)),
             SzurubooruAuth::None => req,
-        };
-        req
+        }
     }
 
     #[tracing::instrument(skip(self), fields(base_url=self.client.base_url.to_string()))]
@@ -767,7 +763,7 @@ impl<'a> SzurubooruRequest<'a> {
         };
 
         let mut thumbnail_file = if let Some(t) = thumbnail {
-            if let None = filename {
+            if filename.is_none() {
                 filename = Some(
                     t.as_ref()
                         .file_name()
@@ -832,7 +828,7 @@ impl<'a> SzurubooruRequest<'a> {
         content_response
             .bytes()
             .await
-            .map_err(|e| SzurubooruClientError::RequestError(e))
+            .map_err(SzurubooruClientError::RequestError)
     }
 
     /// Retrieves posts that look like the input image
@@ -861,24 +857,12 @@ impl<'a> SzurubooruRequest<'a> {
     /// Searches for an exact match of a file based on the SHA1 checksum
     pub async fn posts_for_file(
         &self,
-        file: &mut File,
+        mut file: &mut File,
     ) -> SzurubooruResult<PagedSearchResult<PostResource>> {
-        let mut buffer = [0; 1024];
         let mut hasher = Sha1::new();
-        let mut reader = BufReader::new(file);
-
-        loop {
-            let n = reader
-                .read(&mut buffer)
-                .map_err(SzurubooruClientError::IOError)?;
-            hasher.update(buffer);
-
-            if n == 0 {
-                break;
-            }
-        }
-        let result = hasher.finalize();
-        let hex_string = hex::encode(result);
+        std::io::copy(&mut file, &mut hasher).map_err(SzurubooruClientError::IOError)?;
+        let hash = hasher.finalize();
+        let hex_string = hex::encode(hash);
 
         let qt = QueryToken::token(PostNamedToken::ContentChecksum, hex_string);
         self.list_posts(Some(&vec![qt])).await
@@ -1188,6 +1172,7 @@ impl<'a> SzurubooruRequest<'a> {
         path: &str,
         new_user: &CreateUpdateUser,
         file: Option<&mut File>,
+        file_name: Option<impl AsRef<str>>,
     ) -> SzurubooruResult<UserResource> {
         match file {
             None => self.do_request(method, path, None, Some(new_user)).await,
@@ -1198,7 +1183,9 @@ impl<'a> SzurubooruRequest<'a> {
                     .map_err(SzurubooruClientError::JSONSerializationError)?;
                 let metadata_part = Part::text(metadata_str);
 
-                let content_part = self.part_from_file(file)?;
+                let content_part = self
+                    .part_from_file(file)?
+                    .file_name(file_name.unwrap().as_ref().to_string());
 
                 let form = Form::new()
                     .part("avatar", content_part)
@@ -1228,10 +1215,17 @@ impl<'a> SzurubooruRequest<'a> {
     pub async fn create_user_with_avatar_file(
         &self,
         avatar: &mut File,
+        file_name: impl AsRef<str>,
         new_user: &CreateUpdateUser,
     ) -> SzurubooruResult<UserResource> {
-        self.create_update_user(Method::POST, "/users", new_user, Some(avatar))
-            .await
+        self.create_update_user(
+            Method::POST,
+            "/users",
+            new_user,
+            Some(avatar),
+            Some(file_name),
+        )
+        .await
     }
 
     /// Create a [UserResource](models::UserResource) with the included Avatar file path
@@ -1242,9 +1236,16 @@ impl<'a> SzurubooruRequest<'a> {
         avatar_path: impl AsRef<Path>,
         new_user: &CreateUpdateUser,
     ) -> SzurubooruResult<UserResource> {
-        let mut file = File::open(avatar_path).map_err(SzurubooruClientError::IOError)?;
-        self.create_update_user(Method::POST, "/users", new_user, Some(&mut file))
-            .await
+        let mut file = File::open(&avatar_path).map_err(SzurubooruClientError::IOError)?;
+        let filename = avatar_path.as_ref().file_name().unwrap().to_str().unwrap();
+        self.create_update_user(
+            Method::POST,
+            "/users",
+            new_user,
+            Some(&mut file),
+            Some(filename),
+        )
+        .await
     }
 
     /// Updates user using specified parameters. Names and passwords must match
@@ -1262,8 +1263,8 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/users/{name}");
-        self.do_request(Method::POST, path, None, Some(update_user))
+        let path = format!("/user/{name}");
+        self.do_request(Method::PUT, path, None, Some(update_user))
             .await
     }
 
@@ -1274,14 +1275,21 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         name: T,
         avatar: &mut File,
+        file_name: impl AsRef<str>,
         update_user: &CreateUpdateUser,
     ) -> SzurubooruResult<UserResource>
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/users/{name}");
-        self.create_update_user(Method::POST, &path, update_user, Some(avatar))
-            .await
+        let path = format!("/user/{name}");
+        self.create_update_user(
+            Method::PUT,
+            &path,
+            update_user,
+            Some(avatar),
+            Some(file_name),
+        )
+        .await
     }
 
     /// Update a [UserResource](models::UserResource) with the included Avatar file path
@@ -1296,10 +1304,17 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/users/{name}");
-        let mut file = File::open(avatar_path).map_err(SzurubooruClientError::IOError)?;
-        self.create_update_user(Method::POST, &path, new_user, Some(&mut file))
-            .await
+        let path = format!("/user/{name}");
+        let mut file = File::open(&avatar_path).map_err(SzurubooruClientError::IOError)?;
+        let filename = avatar_path.as_ref().file_name().unwrap().to_str().unwrap();
+        self.create_update_user(
+            Method::PUT,
+            &path,
+            new_user,
+            Some(&mut file),
+            Some(filename),
+        )
+        .await
     }
 
     /// Retrieves information about an existing user
@@ -1307,7 +1322,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/users/{name}");
+        let path = format!("/user/{name}");
         self.do_request(Method::GET, &path, None, None::<&String>)
             .await
     }
@@ -1317,10 +1332,11 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/users/{name}");
+        let path = format!("/user/{name}");
         let version_obj = ResourceVersion { version };
-        self.do_request(Method::DELETE, &path, None, Some(&version_obj))
+        self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
+            .map(|_| ())
     }
 
     /// Listing user tokens for the given user.
@@ -1346,7 +1362,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user-tokens/{name}");
+        let path = format!("/user-token/{name}");
         self.do_request(Method::POST, &path, None, Some(create_token))
             .await
     }
@@ -1363,7 +1379,7 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user-tokens/{name}/{token}");
+        let path = format!("/user-token/{name}/{token}");
         self.do_request(Method::PUT, &path, None, Some(update_token))
             .await
     }
@@ -1380,10 +1396,11 @@ impl<'a> SzurubooruRequest<'a> {
     where
         T: AsRef<str> + Display,
     {
-        let path = format!("/user-tokens/{name}/{token}");
+        let path = format!("/user-token/{name}/{token}");
         let version_obj = ResourceVersion { version };
-        self.do_request(Method::DELETE, &path, None, Some(&version_obj))
+        self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
             .await
+            .map(|_| ())
     }
 
     /// Sends a confirmation email to given user. The email contains link containing a token. The
