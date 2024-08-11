@@ -1,4 +1,5 @@
 use chrono::Months;
+use sha1::{Digest, Sha1};
 use std::error::Error;
 use std::fs::File;
 use std::path::Path;
@@ -56,6 +57,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     test_pools(&auth_client).await;
     test_comments(&auth_client).await;
     test_users(&auth_client).await;
+    test_snapshots(&auth_client).await;
 
     Command::new("sh")
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -868,4 +870,17 @@ async fn test_users(client: &SzurubooruClient) {
         .delete_user_token(username, token.token.unwrap(), token.version.unwrap())
         .await
         .expect("Could not delete token");
+}
+
+#[instrument(skip(client))]
+async fn test_snapshots(client: &SzurubooruClient) {
+    info!("Testing snapshots");
+
+    info!("Listing snapshots");
+    let snap_list = client
+        .request()
+        .list_snapshots(None)
+        .await
+        .expect("Could not list snapshots");
+    assert!(snap_list.total > 0);
 }
