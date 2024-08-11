@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::Stdio;
 use std::time::Duration;
 use szurubooru_client::models::*;
-use szurubooru_client::tokens::QueryToken;
+use szurubooru_client::tokens::{CommentNamedToken, QueryToken};
 use szurubooru_client::*;
 use tokio::process::Command;
 use tracing::level_filters::LevelFilter;
@@ -53,6 +53,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     test_creating_posts(&auth_client).await;
     test_pool_categories(&auth_client).await;
     test_pools(&auth_client).await;
+    test_comments(&auth_client).await;
 
     Command::new("sh")
         .current_dir(env!("CARGO_MANIFEST_DIR"))
@@ -667,4 +668,90 @@ async fn test_pools(client: &SzurubooruClient) {
         .merge_pools(&merge_pool_obj)
         .await
         .expect("Unable to merge pools");
+}
+
+#[instrument(skip(client))]
+async fn test_comments(client: &SzurubooruClient) {
+    info!("Testing comments");
+
+    info!("Listing comments");
+    let comment_list = client
+        .request()
+        .list_comments(None)
+        .await
+        .expect("Unable to list comments");
+
+    let f4_results = client
+        .request()
+        .list_posts(Some(&vec![QueryToken::anonymous("cat")]))
+        .await
+        .expect("Could not list posts by tag cat");
+    let post_ids = f4_results
+        .results
+        .into_iter()
+        .map(|p| p.id.unwrap())
+        .collect::<Vec<u32>>();
+    let post_id = *post_ids.first().unwrap();
+
+    info!("Creating comment");
+    let create_comment = CreateUpdateCommentBuilder::default()
+        .text("Excellent cat!".to_string())
+        .post_id(post_id)
+        .build()
+        .expect("Unable to create comment object");
+    let comment = client
+        .request()
+        .create_comment(&create_comment)
+        .await
+        .expect("Unable to create comment");
+
+    info!("Updating comment");
+    let update_comment = CreateUpdateCommentBuilder::default()
+        .text("Beautiful cat!".to_string())
+        .version(comment.version.unwrap())
+        .build()
+        .expect("Unable to create comment update object");
+    let comment = client
+        .request()
+        .update_comment(comment.id.unwrap(), &update_comment)
+        .await
+        .expect("Unable to update comment");
+
+    info!("Getting comment");
+    let comment = client
+        .request()
+        .get_comment(comment.id.unwrap())
+        .await
+        .expect("Unable to fetch comment");
+
+    info!("Getting all comments for post");
+    let query_vec = vec![QueryToken::token(
+        CommentNamedToken::Post,
+        post_id.to_string(),
+    )];
+    let comment_list = client
+        .request()
+        //.list_comments(None)
+        .list_comments(Some(&vec![QueryToken::token(
+            CommentNamedToken::Post,
+            post_id.to_string(),
+        )]))
+        .await
+        .expect("Unable to fetch comments for post");
+    assert_ne!(comment_list.total, 0);
+
+    info!("Rating comment");
+    let comment = client
+        .request()
+        .rate_comment(comment.id.unwrap(), -1)
+        .await
+        .expect("Could not rate comment");
+    assert_eq!(comment.own_score, Some(-1));
+
+    info!("Deleting comment");
+    client
+        .request()
+        .delete_comment(comment.id.unwrap(), comment.version.unwrap())
+        .await
+        .expect("Could not delete comment");
 }
