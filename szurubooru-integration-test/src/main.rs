@@ -913,14 +913,14 @@ async fn test_downloads(client: &SzurubooruClient) {
     let mut dl_file = tempfile().expect("Could not create temporary file");
     //let mut dl_thumb_file = tempfile().expect("Could not create temporary thumbnail file");
 
-    let dlfolly3_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("dlfolly3.jpg");
-    let mut dl_file = File::options()
-        .create(true)
-        .truncate(true)
-        .read(true)
-        .write(true)
-        .open(dlfolly3_path)
-        .expect("unable to open download file");
+    //let dlfolly3_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("dlfolly3.jpg");
+    /*let mut dl_file = File::options()
+    .create(true)
+    .truncate(true)
+    .read(true)
+    .write(true)
+    .open(dlfolly3_path)
+    .expect("unable to open download file");*/
 
     client
         .request()

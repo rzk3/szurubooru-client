@@ -28,6 +28,14 @@ pub struct UnpagedSearchResult<T> {
     pub results: Vec<T>,
 }
 
+impl<T: WithBaseURL> WithBaseURL for UnpagedSearchResult<T> {
+    fn with_base_url(self, url: &str) -> Self {
+        Self {
+            results: self.results.with_base_url(url),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 /// A result of search operation that involves paging
 ///
@@ -44,6 +52,33 @@ pub struct PagedSearchResult<T> {
     pub total: u32,
     /// The results themselves
     pub results: Vec<T>,
+}
+
+impl<T: WithBaseURL> WithBaseURL for PagedSearchResult<T> {
+    fn with_base_url(self, url: &str) -> Self {
+        Self {
+            results: self.results.with_base_url(url),
+            ..self
+        }
+    }
+}
+
+pub(crate) trait WithBaseURL {
+    fn with_base_url(self, url: &str) -> Self;
+}
+
+impl<T: WithBaseURL> WithBaseURL for Option<T> {
+    fn with_base_url(self, url: &str) -> Self {
+        self.map(|inner| inner.with_base_url(url))
+    }
+}
+
+impl<T: WithBaseURL> WithBaseURL for Vec<T> {
+    fn with_base_url(self, url: &str) -> Self {
+        self.into_iter()
+            .map(|inner| inner.with_base_url(url))
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -265,6 +300,19 @@ pub struct MicroPostResource {
     pub thumbnail_url: String,
 }
 
+impl WithBaseURL for MicroPostResource {
+    fn with_base_url(self, url: &str) -> Self {
+        if !self.thumbnail_url.contains(url) {
+            MicroPostResource {
+                id: self.id,
+                thumbnail_url: format!("{}{}", url, self.thumbnail_url),
+            }
+        } else {
+            self
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[doc(hidden)]
 pub(crate) struct PostId {
@@ -344,6 +392,40 @@ pub struct PostResource {
     pub comment: Option<Vec<CommentResource>>,
     /// The pools in which the post is a member
     pub pools: Option<Vec<PoolResource>>,
+}
+
+impl WithBaseURL for PostResource {
+    fn with_base_url(self, url: &str) -> Self {
+        let curl = self.content_url.map(|cu| {
+            if !cu.contains(url) {
+                format!("{}{}", url, cu)
+            } else {
+                cu
+            }
+        });
+        let turl = self.thumbnail_url.map(|tu| {
+            if !tu.contains(url) {
+                format!("{}{}", url, tu)
+            } else {
+                tu
+            }
+        });
+
+        let user = self.user.with_base_url(url);
+        let relations = self.relations.with_base_url(url);
+        let fv_by = self.favorited_by.with_base_url(url);
+        let pools = self.pools.with_base_url(url);
+
+        PostResource {
+            content_url: curl,
+            thumbnail_url: turl,
+            user,
+            relations,
+            favorited_by: fv_by,
+            pools,
+            ..self
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
@@ -509,6 +591,22 @@ pub struct UserResource {
     pub favorite_post_count: Option<SzuruEither<u32, bool>>,
 }
 
+impl WithBaseURL for UserResource {
+    fn with_base_url(self, url: &str) -> Self {
+        let av_url = self.avatar_url.map(|au| {
+            if !au.contains(url) {
+                format!("{}{}", url, au)
+            } else {
+                au
+            }
+        });
+        UserResource {
+            avatar_url: av_url,
+            ..self
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Builder)]
 #[builder(setter(strip_option))]
 #[serde(rename_all = "camelCase")]
@@ -548,6 +646,19 @@ pub struct MicroUserResource {
     pub avatar_url: String,
 }
 
+impl WithBaseURL for MicroUserResource {
+    fn with_base_url(self, url: &str) -> Self {
+        if !self.avatar_url.contains(url) {
+            MicroUserResource {
+                name: self.name,
+                avatar_url: format!("{}{}", url, self.avatar_url),
+            }
+        } else {
+            self
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 /// A single user token
@@ -570,6 +681,15 @@ pub struct UserAuthTokenResource {
     pub last_edit_time: Option<DateTime<Utc>>,
     /// the last time this token was used
     pub last_usage_time: Option<DateTime<Utc>>,
+}
+
+impl WithBaseURL for UserAuthTokenResource {
+    fn with_base_url(self, url: &str) -> Self {
+        Self {
+            user: self.user.with_base_url(url),
+            ..self
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
@@ -725,6 +845,15 @@ pub struct PoolResource {
     /// The pool description (instructions how to use, history etc). The client should render
     /// it as Markdown
     pub description: Option<String>,
+}
+
+impl WithBaseURL for PoolResource {
+    fn with_base_url(self, url: &str) -> Self {
+        PoolResource {
+            posts: self.posts.with_base_url(url),
+            ..self
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
@@ -912,6 +1041,20 @@ pub enum SnapshotCreationDeletionData {
     PoolCategory(PoolCategoryResource),
 }
 
+impl WithBaseURL for SnapshotCreationDeletionData {
+    fn with_base_url(self, url: &str) -> Self {
+        match self {
+            SnapshotCreationDeletionData::Pool(pool) => {
+                SnapshotCreationDeletionData::Pool(pool.with_base_url(url))
+            }
+            SnapshotCreationDeletionData::Post(post) => {
+                SnapshotCreationDeletionData::Post(post.with_base_url(url))
+            }
+            _ => self,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 /// Data for a modified resource
@@ -940,6 +1083,17 @@ pub enum SnapshotData {
     Merge(Vec<String>),
 }
 
+impl WithBaseURL for SnapshotData {
+    fn with_base_url(self, url: &str) -> Self {
+        match self {
+            SnapshotData::CreateOrDelete(cod) => {
+                SnapshotData::CreateOrDelete(cod.with_base_url(url))
+            }
+            _ => self,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 /// Overall type representing some sort of change to a resource
@@ -959,6 +1113,16 @@ pub struct SnapshotResource {
     pub time: Option<DateTime<Utc>>,
 }
 
+impl WithBaseURL for SnapshotResource {
+    fn with_base_url(self, url: &str) -> Self {
+        SnapshotResource {
+            user: self.user.with_base_url(url),
+            data: self.data.with_base_url(url),
+            ..self
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 /// A result when searching for similar posts to a given image
@@ -967,6 +1131,15 @@ pub struct ImageSearchSimilarPost {
     pub distance: f32,
     /// The post in question
     pub post: PostResource,
+}
+
+impl WithBaseURL for ImageSearchSimilarPost {
+    fn with_base_url(self, url: &str) -> Self {
+        Self {
+            post: self.post.with_base_url(url),
+            ..self
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -979,6 +1152,15 @@ pub struct ImageSearchResult {
     /// the input file. Works only on images and animations, does not work for videos and
     /// Flash movies.
     pub similar_posts: Vec<ImageSearchSimilarPost>,
+}
+
+impl WithBaseURL for ImageSearchResult {
+    fn with_base_url(self, url: &str) -> Self {
+        Self {
+            exact_post: self.exact_post.with_base_url(url),
+            similar_posts: self.similar_posts.with_base_url(url),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
