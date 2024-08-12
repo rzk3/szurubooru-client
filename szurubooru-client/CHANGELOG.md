@@ -1,3 +1,13 @@
+## v0.4.0 (2024-08-12)
+
+### Feat
+
+- **client**: changed all resources so that the URLs include the server's base URL
+
+### Refactor
+
+- **tokens**: cleanup dead code
+
 ## v0.3.0 (2024-08-11)
 
 ### Feat
