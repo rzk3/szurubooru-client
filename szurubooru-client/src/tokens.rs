@@ -4,7 +4,6 @@
 
 use std::fmt::Display;
 use strum_macros::AsRefStr;
-use urlencoding::encode;
 
 /// A named token such as `foo:bar`
 pub trait NamedToken: AsRef<str> {}
