@@ -8,7 +8,7 @@
 
 - **tokens**: cleanup dead code
 
-## v0.3.0 (2024-08-11)
+## v0.3.0 (2024-08-12)
 
 ### Feat
 

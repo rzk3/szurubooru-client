@@ -1,65 +1,52 @@
-# Changelog
+## v0.4.0 (2024-08-12)
 
-All notable changes to this project will be documented in this file.
+### Feat
 
-## [0.2.3] - 2024-08-11
+- **client**: changed all resources so that the URLs include the server's base URL
 
-### 🐛 Bug Fixes
+### Refactor
 
-- *(client)* Fixing reverse image search
+- **tokens**: cleanup dead code
 
-### 🚜 Refactor
+## v0.3.0 (2024-08-12)
 
-- *(main)* Fixing some stuff for clippy
+### Feat
 
-### Bump
+- **client**: adding post image and post thumbnail downloading methods
 
-- Version 0.2.2 → 0.2.3
+### Fix
 
-## [0.2.2] - 2024-08-11
+- **client**: fixing API path for file downloads
+- **tokens**: fixing token encoding
+- **models**: fixing parsing of snapshot data
 
-### 🐛 Bug Fixes
+## v0.2.3 (2024-08-11)
 
-- *(client)* Fixes for user and token CRUD operations
+### Fix
 
-### Bump
+- **client**: fixing reverse image search
 
-- Version 0.2.1 → 0.2.2
+### Refactor
 
-## [0.2.1] - 2024-08-11
+- **main**: fixing some stuff for clippy
 
-### 🐛 Bug Fixes
+## v0.2.2 (2024-08-11)
 
-- *(client)* Fixing pool CRUD operations
-- *(client)* Fixing tokens to not be encoded wholesale
+### Fix
 
-### 🧪 Testing
+- **client**: fixes for user and token CRUD operations
 
-- *(integration-test)* Adding pool CRUD operations
-- *(integration-test)* Adding comment tests
+## v0.2.1 (2024-08-10)
 
-### Build
+### Fix
 
-- *(pre-commit)* Restoring previous pre-commit settings
-- *(version)* Bumping version
+- **client**: fixing tokens to not be encoded wholesale
+- **client**: fixing pool CRUD operations
 
-## [0.2.0] - 2024-08-11
+## v0.2.0 (2024-08-10)
 
-### 📚 Documentation
+### Fix
 
-- Adding changelog
-- Updating CHANGELOG.md for real this time
+- **client.rs**: fixing file uploads requiring file name
 
-### ⚙️ Miscellaneous Tasks
-
-- *(cz)* Adding commitizen config
-
-### Bump
-
-- Version 0.1.1 → 0.2.0
-
-## [0.1.1] - 2024-08-10
-
-### ⚙️ Miscellaneous Tasks
-
-- Adding pre-commit hook for conventional commits
+## v0.1.1 (2024-08-10)
