@@ -80,6 +80,7 @@ jobs:
           python-version: 3.x
       - name: Build wheels
         uses: PyO3/maturin-action@v1
+        working-directory: ./szurubooru-client
         with:
           target: ${{ matrix.platform.target }}
           args: -F python --release --out dist --find-interpreter
