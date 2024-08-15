@@ -186,7 +186,6 @@ impl TagResource {
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
 //#[builder(pattern="owned")]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 pub struct CreateUpdateTag {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -244,7 +243,7 @@ impl TagCategoryResource {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Builder)]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
+
 /// Used for creating or updating a Tag Category
 pub struct CreateUpdateTagCategory {
     /// Resource version. See [versioning](ResourceVersion)
@@ -499,7 +498,6 @@ impl WithBaseURL for PostResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// A `struct` used to create or update a post. For updating purposes
@@ -774,7 +772,6 @@ impl WithBaseURL for UserResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Builder)]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// `struct` used to create or update a user resource. The version field is only used when
@@ -878,7 +875,6 @@ impl WithBaseURL for UserAuthTokenResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(into, strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "kebab-case")]
 /// `struct` to create or update a UserAuthToken. `version` is only required when updating an
@@ -999,7 +995,6 @@ impl PoolCategoryResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 /// `struct` used for creating or updating a pool category. This type uses a Builder pattern like
 /// so:
@@ -1072,7 +1067,6 @@ impl WithBaseURL for PoolResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// This type is used when creating or updating a pool object. It uses the builder pattern like so:
@@ -1202,7 +1196,6 @@ impl CommentResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// This type is used when creating or updating a comment. This type uses the builder pattern like

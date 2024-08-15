@@ -47,15 +47,14 @@ use pyo3::prelude::*;
 
 #[cfg(feature = "python")]
 #[cfg_attr(feature = "python", pymodule)]
+/// A Python wrapper around [SzurubooruClient]
 mod szurubooru_client {
     use pyo3::prelude::*;
 
     #[pymodule_export]
     pub use crate::{
         models::{
-            AroundPostResult, CommentResource, CreateUpdateComment, CreateUpdatePool,
-            CreateUpdatePoolCategory, CreateUpdatePost, CreateUpdateTag, CreateUpdateTagCategory,
-            CreateUpdateUser, CreateUpdateUserAuthToken, GlobalInfo, ImageSearchResult,
+            AroundPostResult, CommentResource, GlobalInfo, ImageSearchResult,
             ImageSearchSimilarPost, MergePool, MergePost, MergeTags, MicroPoolResource,
             MicroPostResource, MicroTagResource, MicroUserResource, NoteResource,
             PoolCategoryResource, PoolResource, PostResource, PostSafety, PostType,
