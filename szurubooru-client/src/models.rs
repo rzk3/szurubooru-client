@@ -88,7 +88,7 @@ impl<T: WithBaseURL> WithBaseURL for Vec<T> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
+#[cfg_attr(all(feature = "python"), pyclass(get_all, eq))]
 /// A [tag resource](TagResource) stripped down to `names`, `category` and `usages` fields.
 pub struct MicroTagResource {
     /// The tag names and aliases
@@ -97,6 +97,14 @@ pub struct MicroTagResource {
     pub category: String,
     /// The number of times this tag has been used
     pub usages: u32,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl MicroTagResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -152,6 +160,14 @@ pub struct TagResource {
     pub description: Option<String>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl TagResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 /// Creates or updates a tag using specified parameters. Names, suggestions and implications must
 /// match `tag_name_regex` from server's configuration. Category must exist and is the same as name
 /// field within <tag-category> resource. Suggestions and implications are optional. If specified
@@ -170,7 +186,6 @@ pub struct TagResource {
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
 //#[builder(pattern="owned")]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 pub struct CreateUpdateTag {
@@ -200,81 +215,6 @@ pub struct CreateUpdateTag {
     pub suggestions: Option<Vec<String>>,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdateTag {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<CreateUpdateTagBuilder> {
-        Ok(CreateUpdateTagBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdateTagBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<CreateUpdateTag> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-
-    #[pyo3(name = "with_version")]
-    pub fn version_py(mut slf: PyRefMut<'_, Self>, version: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.version(version);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_category")]
-    pub fn category_py(mut slf: PyRefMut<'_, Self>, cat: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.category(cat);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_names")]
-    pub fn names_py<'py>(
-        mut slf: PyRefMut<'py, Self>,
-        names: Vec<String>,
-    ) -> PyResult<PyRefMut<'py, Self>> {
-        slf.names(names);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_description")]
-    pub fn description_py(
-        mut slf: PyRefMut<'_, Self>,
-        desc: String,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.description(desc);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_implications")]
-    pub fn implications_py(
-        mut slf: PyRefMut<'_, Self>,
-        implications: Vec<String>,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.implications(implications);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_suggestions")]
-    pub fn suggestions_py(
-        mut slf: PyRefMut<'_, Self>,
-        suggestions: Vec<String>,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.suggestions(suggestions);
-        Ok(slf)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 /// A single tag category. The primary purpose of tag categories is to distinguish certain tag
@@ -294,8 +234,15 @@ pub struct TagCategoryResource {
     pub default: Option<bool>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl TagCategoryResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Builder)]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 /// Used for creating or updating a Tag Category
@@ -318,59 +265,8 @@ pub struct CreateUpdateTagCategory {
     pub order: Option<u32>,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdateTagCategory {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<CreateUpdateTagCategoryBuilder> {
-        Ok(CreateUpdateTagCategoryBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdateTagCategoryBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<CreateUpdateTagCategory> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-
-    #[pyo3(name = "with_version")]
-    pub fn version_py(mut slf: PyRefMut<'_, Self>, version: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.version(version);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_name")]
-    pub fn name_py(mut slf: PyRefMut<'_, Self>, name: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.name(name);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_color")]
-    pub fn color_py(mut slf: PyRefMut<'_, Self>, color: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.color(color);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_order")]
-    pub fn order_py(mut slf: PyRefMut<'_, Self>, order: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.order(order);
-        Ok(slf)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
+#[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[serde(rename_all = "camelCase")]
 /// Removes source tag and merges all of its usages, suggestions and implications to the target tag.
@@ -390,63 +286,6 @@ pub struct MergeTags {
     pub merge_to_tag: String,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl MergeTags {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<MergeTagsBuilder> {
-        Ok(MergeTagsBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl MergeTagsBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<MergeTags> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-
-    #[pyo3(name = "with_remove_tag_version")]
-    pub fn remove_tag_version_py(
-        mut slf: PyRefMut<'_, Self>,
-        v: u32,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.remove_tag_version(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_remove_tag")]
-    pub fn remove_tag_py(mut slf: PyRefMut<'_, Self>, v: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.remove_tag(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_merge_tag_version")]
-    pub fn merge_to_version_py(
-        mut slf: PyRefMut<'_, Self>,
-        v: u32,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.merge_to_version(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_merge_to_tag")]
-    pub fn merge_to_tag_py(mut slf: PyRefMut<'_, Self>, v: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.merge_to_tag(v);
-        Ok(slf)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 /// Lists siblings of given tag, e.g. tags that were used in the same posts as the given tag
@@ -455,6 +294,14 @@ pub struct TagSibling {
     pub tag: TagResource,
     /// How many times a given tag appears with the given tag
     pub occurrences: u32,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl TagSibling {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, AsRefStr, Eq, PartialEq)]
@@ -504,6 +351,14 @@ pub struct MicroPostResource {
     pub id: u32,
     /// The thumbnail URL of the post
     pub thumbnail_url: String,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl MicroPostResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 impl WithBaseURL for MicroPostResource {
@@ -601,6 +456,14 @@ pub struct PostResource {
     pub pools: Option<Vec<PoolResource>>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl PostResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for PostResource {
     fn with_base_url(self, url: &str) -> Self {
         let curl = self.content_url.map(|cu| {
@@ -636,7 +499,6 @@ impl WithBaseURL for PostResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
@@ -683,105 +545,6 @@ pub struct CreateUpdatePost {
     pub content_token: Option<String>,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdatePost {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<CreateUpdatePostBuilder> {
-        Ok(CreateUpdatePostBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdatePostBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<CreateUpdatePost> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-
-    #[pyo3(name = "with_version")]
-    pub fn version_py(mut slf: PyRefMut<'_, Self>, version: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.version(version);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_tags")]
-    pub fn tags_py(mut slf: PyRefMut<'_, Self>, tags: Vec<String>) -> PyResult<PyRefMut<'_, Self>> {
-        slf.tags(tags);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_safety")]
-    pub fn safety_py(
-        mut slf: PyRefMut<'_, Self>,
-        safety: PostSafety,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.safety(safety);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_source")]
-    pub fn source_py(mut slf: PyRefMut<'_, Self>, source: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.source(source);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_relations")]
-    pub fn relations_py(
-        mut slf: PyRefMut<'_, Self>,
-        relations: Vec<u32>,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.relations(relations);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_notes")]
-    pub fn notes_py(
-        mut slf: PyRefMut<'_, Self>,
-        notes: Vec<NoteResource>,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.notes(notes);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_flags")]
-    pub fn flags_py(
-        mut slf: PyRefMut<'_, Self>,
-        flags: Vec<String>,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.flags(flags);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_content_url")]
-    pub fn content_url_py(
-        mut slf: PyRefMut<'_, Self>,
-        val: String,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.content_url(val);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_content_token")]
-    pub fn content_token_py(
-        mut slf: PyRefMut<'_, Self>,
-        val: String,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.content_token(val);
-        Ok(slf)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
@@ -791,10 +554,17 @@ pub struct TemporaryFileUpload {
     pub token: String,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl TemporaryFileUpload {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
-#[builder(setter(into))]
+#[builder(build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// Removes source post and merges all of its tags, relations, scores, favorites and comments to
 /// the target post. If replaceContent is set to true, content of the target post is replaced using
@@ -818,72 +588,6 @@ pub struct MergePost {
     pub replace_post_content: bool,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl MergePost {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<MergePostBuilder> {
-        Ok(MergePostBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl MergePostBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<MergePost> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-
-    #[pyo3(name = "with_remove_post_version")]
-    pub fn remove_post_version_py(
-        mut slf: PyRefMut<'_, Self>,
-        v: u32,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.remove_post_version(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_remove_post")]
-    pub fn remove_post_py(mut slf: PyRefMut<'_, Self>, v: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.remove_post(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_merge_to_version")]
-    pub fn merge_to_version_py(
-        mut slf: PyRefMut<'_, Self>,
-        v: u32,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.merge_to_version(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_merge_to_post")]
-    pub fn merge_to_post_py(mut slf: PyRefMut<'_, Self>, v: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.merge_to_post(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_replace_post_content")]
-    pub fn with_replace_post_content_py(
-        mut slf: PyRefMut<'_, Self>,
-        v: bool,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.replace_post_content(v);
-        Ok(slf)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[doc(hidden)]
 pub struct RateResource {
@@ -902,6 +606,14 @@ pub struct NoteResource {
     pub polygon: Vec<Vec<u8>>,
     /// The annotation text, in Markdown format
     pub text: String,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl NoteResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -1000,6 +712,10 @@ pub struct UserResource {
 #[cfg(feature = "python")]
 #[cfg_attr(all(feature = "python"), pymethods)]
 impl UserResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
     #[getter]
     #[pyo3(name = "email")]
     pub fn email_py(&self) -> PyResult<Option<String>> {
@@ -1058,7 +774,6 @@ impl WithBaseURL for UserResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Builder)]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
@@ -1088,66 +803,6 @@ pub struct CreateUpdateUser {
     pub avatar_style: Option<UserAvatarStyle>,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdateUser {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<CreateUpdateUserBuilder> {
-        Ok(CreateUpdateUserBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdateUserBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<CreateUpdateUser> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-    #[pyo3(name = "with_version")]
-    pub fn version_py(mut slf: PyRefMut<'_, Self>, version: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.version(version);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_name")]
-    pub fn name_py(mut slf: PyRefMut<'_, Self>, v: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.name(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_password")]
-    pub fn password_py(mut slf: PyRefMut<'_, Self>, v: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.password(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_rank")]
-    pub fn rank_py(mut slf: PyRefMut<'_, Self>, v: UserRank) -> PyResult<PyRefMut<'_, Self>> {
-        slf.rank(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_avatar_style")]
-    pub fn avatar_style_py(
-        mut slf: PyRefMut<'_, Self>,
-        v: UserAvatarStyle,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        // Should we accept types other than UserAvatarStyle?
-        slf.avatar_style(v);
-        Ok(slf)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[serde(rename_all = "camelCase")]
@@ -1157,6 +812,14 @@ pub struct MicroUserResource {
     pub name: String,
     /// The user's avatar URL
     pub avatar_url: String,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl MicroUserResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 impl WithBaseURL for MicroUserResource {
@@ -1197,6 +860,14 @@ pub struct UserAuthTokenResource {
     pub last_usage_time: Option<DateTime<Utc>>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl UserAuthTokenResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for UserAuthTokenResource {
     fn with_base_url(self, url: &str) -> Self {
         Self {
@@ -1207,7 +878,6 @@ impl WithBaseURL for UserAuthTokenResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(into, strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "kebab-case")]
@@ -1232,59 +902,6 @@ pub struct CreateUpdateUserAuthToken {
     pub expiration_time: Option<DateTime<Utc>>,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdateUserAuthToken {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<CreateUpdateUserAuthTokenBuilder> {
-        Ok(CreateUpdateUserAuthTokenBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdateUserAuthTokenBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<CreateUpdateUserAuthToken> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-    #[pyo3(name = "with_version")]
-    pub fn version_py(mut slf: PyRefMut<'_, Self>, version: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.version(version);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_enabled")]
-    pub fn enabled_py(mut slf: PyRefMut<'_, Self>, v: bool) -> PyResult<PyRefMut<'_, Self>> {
-        slf.enabled(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_note")]
-    pub fn note_py(mut slf: PyRefMut<'_, Self>, v: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.note(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_expiration_time")]
-    pub fn password_py(
-        mut slf: PyRefMut<'_, Self>,
-        v: DateTime<Utc>,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.expiration_time(v);
-        Ok(slf)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[doc(hidden)]
@@ -1294,7 +911,6 @@ pub struct PasswordResetToken {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[serde(rename_all = "camelCase")]
 /// Type that represents a new temporary password
 pub struct TemporaryPassword {
@@ -1348,6 +964,14 @@ pub struct GlobalInfo {
     pub config: GlobalInfoConfig,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl GlobalInfo {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[serde(rename_all = "camelCase")]
@@ -1366,8 +990,15 @@ pub struct PoolCategoryResource {
     pub default: Option<bool>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl PoolCategoryResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 /// `struct` used for creating or updating a pool category. This type uses a Builder pattern like
@@ -1397,50 +1028,6 @@ pub struct CreateUpdatePoolCategory {
     pub color: Option<String>,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdatePoolCategory {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<CreateUpdatePoolCategoryBuilder> {
-        Ok(CreateUpdatePoolCategoryBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdatePoolCategoryBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<CreateUpdatePoolCategory> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-    #[pyo3(name = "with_version")]
-    pub fn version_py(mut slf: PyRefMut<'_, Self>, version: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.version(version);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_name")]
-    pub fn name_py(mut slf: PyRefMut<'_, Self>, v: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.name(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_color")]
-    pub fn color_py(mut slf: PyRefMut<'_, Self>, v: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.color(v);
-        Ok(slf)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[serde(rename_all = "camelCase")]
@@ -1467,6 +1054,14 @@ pub struct PoolResource {
     pub description: Option<String>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl PoolResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for PoolResource {
     fn with_base_url(self, url: &str) -> Self {
         PoolResource {
@@ -1477,7 +1072,6 @@ impl WithBaseURL for PoolResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
@@ -1518,64 +1112,8 @@ pub struct CreateUpdatePool {
     pub posts: Option<Vec<u32>>,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdatePool {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<CreateUpdatePoolBuilder> {
-        Ok(CreateUpdatePoolBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdatePoolBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<CreateUpdatePool> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-    #[pyo3(name = "with_version")]
-    pub fn version_py(mut slf: PyRefMut<'_, Self>, version: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.version(version);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_names")]
-    pub fn names_py(mut slf: PyRefMut<'_, Self>, v: Vec<String>) -> PyResult<PyRefMut<'_, Self>> {
-        slf.names(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_category")]
-    pub fn category_py(mut slf: PyRefMut<'_, Self>, v: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.category(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_description")]
-    pub fn description_py(mut slf: PyRefMut<'_, Self>, v: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.description(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_posts")]
-    pub fn posts_py(mut slf: PyRefMut<'_, Self>, v: Vec<u32>) -> PyResult<PyRefMut<'_, Self>> {
-        slf.posts(v);
-        Ok(slf)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
+#[builder(build_fn(error = "SzurubooruClientError"))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[serde(rename_all = "camelCase")]
 /// This type is used to specify which pools should be merged. Uses the builder pattern like so:
@@ -1605,62 +1143,6 @@ pub struct MergePool {
     pub merge_to_pool: u32,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl MergePool {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<MergePoolBuilder> {
-        Ok(MergePoolBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl MergePoolBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<MergePool> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-    #[pyo3(name = "with_remove_pool_version")]
-    pub fn remove_pool_version_py(
-        mut slf: PyRefMut<'_, Self>,
-        v: u32,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.remove_pool_version(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_remove_pool")]
-    pub fn remove_pool_py(mut slf: PyRefMut<'_, Self>, v: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.remove_pool(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_merge_to_version")]
-    pub fn merge_to_version_py(
-        mut slf: PyRefMut<'_, Self>,
-        v: u32,
-    ) -> PyResult<PyRefMut<'_, Self>> {
-        slf.merge_to_version(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_merge_to_pool")]
-    pub fn merge_to_pool_py(mut slf: PyRefMut<'_, Self>, v: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.merge_to_pool(v);
-        Ok(slf)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[serde(rename_all = "camelCase")]
@@ -1676,6 +1158,14 @@ pub struct MicroPoolResource {
     pub post_count: Option<u32>,
     /// A markdown string describing the pool
     pub description: Option<String>,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl MicroPoolResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -1703,8 +1193,15 @@ pub struct CommentResource {
     pub own_score: Option<i32>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl CommentResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[cfg_attr(all(feature = "python"), builder_struct_attr(pyclass))]
 #[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
@@ -1733,50 +1230,6 @@ pub struct CreateUpdateComment {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// The post the comment should be attached to. Only used when creating a new comment
     pub post_id: Option<u32>,
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdateComment {
-    #[pyo3(name = "builder")]
-    #[staticmethod]
-    pub fn builder_py() -> PyResult<CreateUpdateCommentBuilder> {
-        Ok(CreateUpdateCommentBuilder::default())
-    }
-}
-
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl CreateUpdateCommentBuilder {
-    #[new]
-    pub fn new() -> PyResult<Self> {
-        Ok(Self::default())
-    }
-
-    #[pyo3(name = "build")]
-    pub fn build_py(&self) -> PyResult<CreateUpdateComment> {
-        match self.build() {
-            Ok(cutag) => Ok(cutag),
-            Err(e) => Err(PyErr::new::<PyValueError, _>(e.to_string())),
-        }
-    }
-    #[pyo3(name = "with_version")]
-    pub fn version_py(mut slf: PyRefMut<'_, Self>, version: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.version(version);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_text")]
-    pub fn with_text_py(mut slf: PyRefMut<'_, Self>, v: String) -> PyResult<PyRefMut<'_, Self>> {
-        slf.text(v);
-        Ok(slf)
-    }
-
-    #[pyo3(name = "with_post_id")]
-    pub fn post_id_py(mut slf: PyRefMut<'_, Self>, v: u32) -> PyResult<PyRefMut<'_, Self>> {
-        slf.post_id(v);
-        Ok(slf)
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -1831,6 +1284,14 @@ pub enum SnapshotCreationDeletionData {
     PoolCategory(PoolCategoryResource),
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl SnapshotCreationDeletionData {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for SnapshotCreationDeletionData {
     fn with_base_url(self, url: &str) -> Self {
         match self {
@@ -1870,6 +1331,10 @@ impl SnapshotModificationData {
     pub fn get_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let obj = to_pyobject(py, &self.value).unwrap().unbind();
         Ok(obj)
+    }
+
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
     }
 }
 
@@ -1918,6 +1383,14 @@ pub struct SnapshotResource {
     pub time: Option<DateTime<Utc>>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl SnapshotResource {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for SnapshotResource {
     fn with_base_url(self, url: &str) -> Self {
         SnapshotResource {
@@ -1937,6 +1410,14 @@ pub struct ImageSearchSimilarPost {
     pub distance: f32,
     /// The post in question
     pub post: PostResource,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl ImageSearchSimilarPost {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 impl WithBaseURL for ImageSearchSimilarPost {
@@ -1961,6 +1442,14 @@ pub struct ImageSearchResult {
     pub similar_posts: Vec<ImageSearchSimilarPost>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl ImageSearchResult {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for ImageSearchResult {
     fn with_base_url(self, url: &str) -> Self {
         Self {
@@ -1978,6 +1467,14 @@ pub struct AroundPostResult {
     prev: Option<u32>,
     /// The next post, if it exists
     next: Option<u32>,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl AroundPostResult {
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 #[cfg(test)]

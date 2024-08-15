@@ -3,6 +3,9 @@
 
 use crate::models::SzuruEither;
 use base64::EncodeSliceError;
+use derive_builder::UninitializedFieldError;
+#[cfg(feature = "python")]
+use pyo3::{exceptions::PyRuntimeError, prelude::*};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::ParseError as UParseError;
@@ -47,6 +50,9 @@ pub enum SzurubooruClientError {
     /// Error serializing an object as JSON
     #[error("JSON Serialization error: {0}")]
     JSONSerializationError(#[source] serde_json::Error),
+    /// Error when validation fails for one of the Builder types
+    #[error("Builder validation error: {0}")]
+    BuilderValidationError(String),
     /// Error occurred when reading a file
     #[error("IO Error: {0}")]
     IOError(#[source] std::io::Error),
@@ -58,6 +64,19 @@ pub enum SzurubooruClientError {
 impl From<SzurubooruServerError> for SzurubooruClientError {
     fn from(value: SzurubooruServerError) -> Self {
         SzurubooruClientError::SzurubooruServerError(value)
+    }
+}
+
+impl From<UninitializedFieldError> for SzurubooruClientError {
+    fn from(value: UninitializedFieldError) -> Self {
+        SzurubooruClientError::BuilderValidationError(value.to_string())
+    }
+}
+
+#[cfg(feature = "python")]
+impl std::convert::From<SzurubooruClientError> for PyErr {
+    fn from(value: SzurubooruClientError) -> Self {
+        PyRuntimeError::new_err(value.to_string())
     }
 }
 

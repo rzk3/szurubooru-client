@@ -2,7 +2,10 @@
 //! warned that the types here help with the Type safety for the Tag names only. It does
 //! not guarantee that a given API endpoint will support the given tag.
 
+#[cfg(feature = "python")]
+use pyo3::{exceptions::PyValueError, prelude::*, types::*};
 use std::fmt::Display;
+use std::str::FromStr;
 use strum_macros::AsRefStr;
 
 /// A named token such as `foo:bar`
@@ -22,7 +25,8 @@ pub trait ToQueryString {
 }
 
 /// A query token using for searching posts, tags and pools
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(all(feature = "python"), pyclass)]
 pub struct QueryToken {
     /// The key for this token. For `foo:bar` this would be `foo`
     pub key: String,
@@ -116,7 +120,7 @@ impl QueryToken {
     /// let liked_posts = QueryToken::special(PostSpecialToken::Liked);
     /// client.request().list_posts(Some(&vec![liked_posts]));
     /// ```
-    pub fn special(key: impl SpecialToken) -> Self {
+    pub fn special(key: impl AsRef<str>) -> Self {
         QueryToken::anonymous(key)
     }
 
@@ -139,6 +143,112 @@ impl QueryToken {
     }
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pyfunction)]
+pub fn named_token(key: &Bound<'_, PyAny>, value: &Bound<'_, PyAny>) -> PyResult<QueryToken> {
+    QueryToken::token_py(key, value)
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pyfunction)]
+pub fn sort_token(key: &Bound<'_, PyAny>) -> PyResult<QueryToken> {
+    QueryToken::sort_py(key)
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pyfunction)]
+pub fn anonymous_token(key: &Bound<'_, PyString>) -> PyResult<QueryToken> {
+    QueryToken::anonymous_py(key)
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pyfunction)]
+pub fn special_token(key: &Bound<'_, PyAny>) -> PyResult<QueryToken> {
+    QueryToken::special_py(key)
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+impl QueryToken {
+    #[pyo3(name = "__str__")]
+    pub fn to_python_string(&self) -> PyResult<String> {
+        Ok(format!("QueryToken(\"{}\", \"{}\")", self.key, self.value))
+    }
+
+    #[pyo3(name = "__repr__")]
+    pub fn to_python_repr(&self) -> PyResult<String> {
+        self.to_python_string()
+    }
+
+    #[pyo3(name = "token")]
+    #[staticmethod]
+    pub fn token_py(key: &Bound<'_, PyAny>, value: &Bound<'_, PyAny>) -> PyResult<Self> {
+        let value = value.extract::<String>()?;
+
+        if let Ok(tnt) = key.extract::<TagNamedToken>() {
+            Ok(QueryToken::token(tnt, value))
+        } else if let Ok(pnt) = key.extract::<PostNamedToken>() {
+            Ok(QueryToken::token(pnt, value))
+        } else if let Ok(pnt) = key.extract::<PoolNamedToken>() {
+            Ok(QueryToken::token(pnt, value))
+        } else if let Ok(comment) = key.extract::<CommentNamedToken>() {
+            Ok(QueryToken::token(comment, value))
+        } else if let Ok(user) = key.extract::<UserNamedToken>() {
+            Ok(QueryToken::token(user, value))
+        } else if let Ok(x) = key.extract::<SnapshotNamedToken>() {
+            Ok(QueryToken::token(x, value))
+        } else if let Ok(strvalue) = key.extract::<String>() {
+            Ok(QueryToken::token(strvalue, value))
+        } else {
+            Err(PyErr::new::<PyValueError, _>("Invalid value type for key"))
+        }
+    }
+
+    #[pyo3(name = "sort")]
+    #[staticmethod]
+    pub fn sort_py(key: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if let Ok(tnt) = key.extract::<TagSortToken>() {
+            Ok(QueryToken::sort(tnt))
+        } else if let Ok(pnt) = key.extract::<PostSortToken>() {
+            Ok(QueryToken::sort(pnt))
+        } else if let Ok(pnt) = key.extract::<PoolSortToken>() {
+            Ok(QueryToken::sort(pnt))
+        } else if let Ok(comment) = key.extract::<CommentSortToken>() {
+            Ok(QueryToken::sort(comment))
+        } else if let Ok(user) = key.extract::<UserSortToken>() {
+            Ok(QueryToken::sort(user))
+        } else if let Ok(strvalue) = key.extract::<String>() {
+            Ok(QueryToken::sort(strvalue))
+        } else {
+            Err(PyErr::new::<PyValueError, _>("Invalid value type for key"))
+        }
+    }
+
+    #[pyo3(name = "anonymous")]
+    #[staticmethod]
+    pub fn anonymous_py(key: &Bound<'_, PyString>) -> PyResult<Self> {
+        let key = key.extract::<String>()?;
+        Ok(QueryToken::anonymous(key))
+    }
+
+    #[pyo3(name = "special")]
+    #[staticmethod]
+    pub fn special_py(key: &Bound<'_, PyAny>) -> PyResult<Self> {
+        if let Ok(special) = key.extract::<PostSpecialToken>() {
+            Ok(QueryToken::special(special))
+        } else if let Ok(strvalue) = key.extract::<String>() {
+            Ok(QueryToken::special(strvalue))
+        } else {
+            Err(PyErr::new::<PyValueError, _>("Invalid value type for key"))
+        }
+    }
+
+    #[pyo3(name = "negate")]
+    pub fn negate_py(&self) -> PyResult<Self> {
+        Ok(self.negate())
+    }
+}
+
 impl Display for QueryToken {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let suffix = if !self.value.is_empty() {
@@ -157,8 +267,9 @@ impl ToQueryString for Vec<QueryToken> {
     }
 }
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe named query tokens for use with [list_tags](crate::SzurubooruRequest::list_tags)
 pub enum TagNamedToken {
     /// having given name (accepts wildcards)
@@ -188,8 +299,25 @@ pub enum TagNamedToken {
 }
 impl NamedToken for TagNamedToken {}
 
-#[derive(Debug, AsRefStr)]
+/*#[cfg(feature="python")]
+impl<'py> FromPyObject<'py> for TagNamedToken {
+    fn extract_bound(ob: &Bound<'py, PyAny>) -> PyResult<Self> {
+        /*use pyo3::exceptions::PyTypeError;
+        if ob.is_instance_of::<TagNamedToken>() {
+            Ok()
+        }
+        let strvalue = ob.extract::<String>()?;
+        match TagNamedToken::from_str(&strvalue) {
+            Ok(tnt) => Ok(tnt),
+            Err(_) => Err(PyTypeError::new_err("Invalid variant"))
+        }*/
+        Ok(ob.downcast_into_exact::<Self>()?.)
+    }
+}*/
+
+#[derive(Debug, AsRefStr, Eq, PartialEq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe sort query tokens for use with [list_tags](crate::SzurubooruRequest::list_tags)
 pub enum TagSortToken {
     /// as random as it can get
@@ -223,8 +351,9 @@ pub enum TagSortToken {
 }
 impl SortableToken for TagSortToken {}
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe named query tokens for use with [list_posts](crate::SzurubooruRequest::list_posts)
 pub enum PostNamedToken {
     /// having given post number
@@ -320,8 +449,9 @@ pub enum PostNamedToken {
 }
 impl NamedToken for PostNamedToken {}
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe sort query tokens for use with [list_posts](crate::SzurubooruRequest::list_posts)
 pub enum PostSortToken {
     /// as random as it can get
@@ -387,8 +517,9 @@ pub enum PostSortToken {
 }
 impl SortableToken for PostSortToken {}
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe special query tokens for use with [list_posts](crate::SzurubooruRequest::list_posts)
 pub enum PostSpecialToken {
     /// posts liked by currently logged-in user
@@ -402,8 +533,9 @@ pub enum PostSpecialToken {
 }
 impl SpecialToken for PostSpecialToken {}
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe named query tokens for use with [list_pools](crate::SzurubooruRequest::list_pools)
 pub enum PoolNamedToken {
     /// having given name (accepts wildcards)
@@ -427,8 +559,9 @@ pub enum PoolNamedToken {
 }
 impl NamedToken for PoolNamedToken {}
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe sort query tokens for use with [list_pools](crate::SzurubooruRequest::list_pools)
 pub enum PoolSortToken {
     /// as random as it can get
@@ -454,8 +587,9 @@ pub enum PoolSortToken {
 }
 impl SortableToken for PoolSortToken {}
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe named query tokens for use with
 /// [list_comments](crate::SzurubooruRequest::list_comments)
 pub enum CommentNamedToken {
@@ -484,8 +618,9 @@ pub enum CommentNamedToken {
 }
 impl NamedToken for CommentNamedToken {}
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe sort query tokens for use with
 /// [list_comments](crate::SzurubooruRequest::list_comments)
 pub enum CommentSortToken {
@@ -512,8 +647,9 @@ pub enum CommentSortToken {
 }
 impl SortableToken for CommentSortToken {}
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe named query tokens for use with [list_users](crate::SzurubooruRequest::list_users)
 pub enum UserNamedToken {
     /// having given name (accepts wildcards)
@@ -533,8 +669,9 @@ pub enum UserNamedToken {
 }
 impl NamedToken for UserNamedToken {}
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe sort query tokens for use with [list_users](crate::SzurubooruRequest::list_users)
 pub enum UserSortToken {
     /// as random as it can get
@@ -556,8 +693,9 @@ pub enum UserSortToken {
 }
 impl SortableToken for UserNamedToken {}
 
-#[derive(Debug, AsRefStr)]
+#[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
+#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
 /// Type-safe named query tokens for use with
 /// [list_snapshots](crate::SzurubooruRequest::list_snapshots)
 pub enum SnapshotNamedToken {

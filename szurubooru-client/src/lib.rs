@@ -35,4 +35,42 @@ pub mod errors;
 pub use errors::SzurubooruResult;
 pub mod models;
 
+#[cfg(feature = "python")]
+pub mod pyclient;
 pub mod tokens;
+
+#[cfg(feature = "python")]
+pub mod py;
+
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+
+#[cfg(feature = "python")]
+#[cfg_attr(feature = "python", pymodule)]
+mod szurubooru_client {
+    use pyo3::prelude::*;
+
+    #[pymodule_export]
+    pub use crate::{
+        models::{
+            AroundPostResult, CommentResource, CreateUpdateComment, CreateUpdatePool,
+            CreateUpdatePoolCategory, CreateUpdatePost, CreateUpdateTag, CreateUpdateTagCategory,
+            CreateUpdateUser, CreateUpdateUserAuthToken, GlobalInfo, ImageSearchResult,
+            ImageSearchSimilarPost, MergePool, MergePost, MergeTags, MicroPoolResource,
+            MicroPostResource, MicroTagResource, MicroUserResource, NoteResource,
+            PoolCategoryResource, PoolResource, PostResource, PostSafety, PostType,
+            SnapshotCreationDeletionData, SnapshotData, SnapshotModificationData,
+            SnapshotOperationType, SnapshotResource, SnapshotResourceType, TagCategoryResource,
+            TagResource, TagSibling, TemporaryFileUpload, UserAuthTokenResource, UserAvatarStyle,
+            UserRank, UserResource,
+        },
+        py::asynchronous::PythonAsyncClient,
+        py::synchronous::PythonSyncClient,
+        tokens::{
+            anonymous_token, named_token, sort_token, special_token, CommentNamedToken,
+            CommentSortToken, PoolNamedToken, PoolSortToken, PostNamedToken, PostSortToken,
+            PostSpecialToken, SnapshotNamedToken, TagNamedToken, TagSortToken, UserNamedToken,
+            UserSortToken,
+        },
+    };
+}
