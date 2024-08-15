@@ -48,7 +48,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: --release --out dist --find-interpreter
+          args: -F python --release --out dist --find-interpreter -m szurubooru-client/Cargo.toml
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
@@ -80,10 +80,9 @@ jobs:
           python-version: 3.x
       - name: Build wheels
         uses: PyO3/maturin-action@v1
-        working-directory: ./szurubooru-client
         with:
           target: ${{ matrix.platform.target }}
-          args: -F python --release --out dist --find-interpreter
+          args: -F python --release --out dist --find-interpreter -m szurubooru-client/Cargo.toml
           sccache: 'true'
           manylinux: musllinux_1_2
       - name: Upload wheels
@@ -114,7 +113,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: -F --release --out dist --find-interpreter
+          args: -F --release --out dist --find-interpreter -m szurubooru-client/Cargo.toml
           sccache: 'true'
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -143,7 +142,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.platform.target }}
-          args: -F python --release --out dist --find-interpreter
+          args: -F python --release --out dist --find-interpreter -m szurubooru-client/Cargo.toml
           sccache: 'true'
       - name: Upload wheels
         uses: actions/upload-artifact@v4
@@ -162,7 +161,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: -F python --out dist
+          args: -F python --out dist -m szurubooru-client/Cargo.toml
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
