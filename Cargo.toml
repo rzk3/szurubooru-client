@@ -4,3 +4,4 @@ members = [
     "szurubooru-client",
     "szurubooru-integration-test"
 ]
+default-members = ["szurubooru-client"]

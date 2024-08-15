@@ -1377,6 +1377,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-pyobject"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca4b0aad8b225845739a0030a0d5cc2ae949c56a86a7daf9226c7df7c2016d16"
+dependencies = [
+ "pyo3",
+ "serde",
+]
+
+[[package]]
 name = "serde_derive"
 version = "1.0.205"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1569,6 +1579,7 @@ dependencies = [
  "pyo3",
  "reqwest",
  "serde",
+ "serde-pyobject",
  "serde_json",
  "sha1",
  "strum",
