@@ -161,7 +161,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: sdist
-          args: -F python --out dist -m szurubooru-client/Cargo.toml
+          args: --out dist -m szurubooru-client/Cargo.toml
       - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
