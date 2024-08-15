@@ -21,7 +21,7 @@ permissions:
 jobs:
   linux:
     runs-on: ${{ matrix.platform.runner }}
-    default:
+    defaults:
       run:
         working-directory: ./szurubooru-client
     strategy:
@@ -59,7 +59,7 @@ jobs:
 
   musllinux:
     runs-on: ${{ matrix.platform.runner }}
-    default:
+    defaults:
       run:
         working-directory: ./szurubooru-client
     strategy:
@@ -93,7 +93,7 @@ jobs:
 
   windows:
     runs-on: ${{ matrix.platform.runner }}
-    default:
+    defaults:
       run:
         working-directory: ./szurubooru-client
     strategy:
@@ -123,7 +123,7 @@ jobs:
 
   macos:
     runs-on: ${{ matrix.platform.runner }}
-    default:
+    defaults:
       run:
         working-directory: ./szurubooru-client
     strategy:
@@ -152,7 +152,7 @@ jobs:
 
   sdist:
     runs-on: ubuntu-latest
-    default:
+    defaults:
       run:
         working-directory: ./szurubooru-client
     steps:
