@@ -6,3 +6,5 @@ szurubooru-integration-test/szurubooru/pgsql/*
 szurubooru-integration-test/szurubooru/server/*
 **/.DS_Store
 **/target
+*.so
+*.pyc

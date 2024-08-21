@@ -22,7 +22,6 @@
 //! ```
 //!
 //! For all other methods for making the requests, see the documentation.
-#![feature(cfg_eval)]
 #![warn(missing_docs)]
 #![warn(rustdoc::missing_crate_level_docs)]
 
@@ -44,13 +43,14 @@ use pyo3::prelude::*;
 
 #[cfg(feature = "python")]
 #[cfg_attr(feature = "python", pymodule)]
-/// A Python wrapper around [SzurubooruClient]
+/// A Python wrapper around SzurubooruClient
 mod szurubooru_client {
+    use pyo3::prelude::*;
 
     #[pymodule_export]
     pub use crate::{
         errors::SzuruPyClientError,
-        models::{
+        /*models::{
             AroundPostResult, CommentResource, GlobalInfo, ImageSearchResult,
             ImageSearchSimilarPost, MicroPoolResource, MicroPostResource, MicroTagResource,
             MicroUserResource, NoteResource, PoolCategoryResource, PoolResource, PostResource,
@@ -59,13 +59,38 @@ mod szurubooru_client {
             SnapshotResourceType, TagCategoryResource, TagResource, TagSibling,
             UserAuthTokenResource, UserAvatarStyle, UserRank, UserResource,
         },
-        py::asynchronous::PythonAsyncClient,
-        py::synchronous::PythonSyncClient,
         tokens::{
             anonymous_token, named_token, sort_token, special_token, CommentNamedToken,
             CommentSortToken, PoolNamedToken, PoolSortToken, PostNamedToken, PostSortToken,
             PostSpecialToken, QueryToken, SnapshotNamedToken, TagNamedToken, TagSortToken,
             UserNamedToken, UserSortToken,
-        },
+        },*/
+        py::asynchronous::PythonAsyncClient, py::synchronous::PythonSyncClient,
     };
+
+    #[pymodule(name = "_tokens")]
+    mod tokens {
+        #[pymodule_export]
+        pub use crate::tokens::{
+            anonymous_token, named_token, sort_token, special_token, CommentNamedToken,
+            CommentSortToken, PoolNamedToken, PoolSortToken, PostNamedToken, PostSortToken,
+            PostSpecialToken, QueryToken, SnapshotNamedToken, TagNamedToken, TagSortToken,
+            UserNamedToken, UserSortToken,
+        };
+        use pyo3::prelude::*;
+    }
+
+    #[pymodule(name = "_models")]
+    mod models {
+        #[pymodule_export]
+        pub use crate::models::{
+            AroundPostResult, CommentResource, GlobalInfo, ImageSearchResult,
+            ImageSearchSimilarPost, MicroPoolResource, MicroPostResource, MicroTagResource,
+            MicroUserResource, NoteResource, PoolCategoryResource, PoolResource, PostResource,
+            PostSafety, PostType, SnapshotCreationDeletionData, SnapshotData,
+            SnapshotModificationData, SnapshotOperationType, SnapshotResource,
+            SnapshotResourceType, TagCategoryResource, TagResource, TagSibling,
+            UserAuthTokenResource, UserAvatarStyle, UserRank, UserResource,
+        };
+    }
 }
