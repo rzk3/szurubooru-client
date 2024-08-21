@@ -5,8 +5,11 @@ use crate::models::SzuruEither;
 use base64::EncodeSliceError;
 use derive_builder::UninitializedFieldError;
 #[cfg(feature = "python")]
-use pyo3::{exceptions::PyRuntimeError, prelude::*};
+use pyo3::{create_exception, exceptions::PyException, prelude::*};
+
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
+use strum_macros::AsRefStr;
 use thiserror::Error;
 use url::ParseError as UParseError;
 
@@ -17,7 +20,7 @@ pub trait IntoClientResult<T> {
     fn into_result(self) -> SzurubooruResult<T>;
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, AsRefStr)]
 /// Type that represents the various error states that can occur when interacting with
 /// Szurubooru
 pub enum SzurubooruClientError {
@@ -38,6 +41,9 @@ pub enum SzurubooruClientError {
     /// Error occurred pas part of the request to the server
     #[error("Request error {0}")]
     RequestError(#[source] reqwest::Error),
+    /// Error response with a text response from the server
+    #[error("Response error {0}: Server reply: {1}")]
+    ResponseError(StatusCode, String),
     /// Error parsing the JSON response from the server
     #[error("Response Parsing error: {0}: {1}")]
     ResponseParsingError(
@@ -51,8 +57,8 @@ pub enum SzurubooruClientError {
     #[error("JSON Serialization error: {0}")]
     JSONSerializationError(#[source] serde_json::Error),
     /// Error when validation fails for one of the Builder types
-    #[error("Builder validation error: {0}")]
-    BuilderValidationError(String),
+    #[error("Vlidation error: {0}")]
+    ValidationError(String),
     /// Error occurred when reading a file
     #[error("IO Error: {0}")]
     IOError(#[source] std::io::Error),
@@ -69,14 +75,17 @@ impl From<SzurubooruServerError> for SzurubooruClientError {
 
 impl From<UninitializedFieldError> for SzurubooruClientError {
     fn from(value: UninitializedFieldError) -> Self {
-        SzurubooruClientError::BuilderValidationError(value.to_string())
+        SzurubooruClientError::ValidationError(value.to_string())
     }
 }
 
 #[cfg(feature = "python")]
+create_exception!(szurubooru_client, SzuruPyClientError, PyException);
+
+#[cfg(feature = "python")]
 impl std::convert::From<SzurubooruClientError> for PyErr {
     fn from(value: SzurubooruClientError) -> Self {
-        PyRuntimeError::new_err(value.to_string())
+        SzuruPyClientError::new_err((value.as_ref().to_string(), value.to_string()))
     }
 }
 

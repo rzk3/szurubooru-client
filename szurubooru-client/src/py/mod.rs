@@ -1,6 +1,8 @@
 use crate::models::PagedSearchResult;
+use pyo3::exceptions::PyException;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
+use pyo3::types::PyListMethods;
 
 pub mod asynchronous;
 pub mod synchronous;
@@ -20,6 +22,12 @@ impl PyPagedSearchResult {
     fn __repr__(&self) -> String {
         format!("{:?}", self)
     }
+
+    /*fn __len__(&self) -> PyResult<usize> {
+        Python::with_gil(|py| {
+            Ok(self.results.bind_borrowed(py).len())
+        })
+    }*/
 }
 
 impl<T: IntoPy<PyObject>> From<PagedSearchResult<T>> for PyPagedSearchResult {

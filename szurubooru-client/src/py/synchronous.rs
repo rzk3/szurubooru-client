@@ -10,6 +10,20 @@ use std::path::{Path, PathBuf};
 use tokio::runtime::{Builder, Runtime};
 
 #[pyclass(name = "SzurubooruSyncClient")]
+/// Constructor for the SzurubooruSyncClient
+/// This client is completely synchronous. For the `asyncio` compatible version,
+/// see [szurubooru_client.PythonAsyncClient](SzurubooruAsyncClient)
+///
+/// ## Arguments
+/// * `host`: Base host URL for the Szurubooru instance. Should be the protocol, hostname and any port
+///     E.g `http://localhost:9801`
+/// * `username`: The username used to authenticate against the Szurubooru instance. Leave blank for
+///     anonymous authentication
+/// * `password`: The password to use for `Basic` authentication. Token authentication should
+///     be preferred
+/// * `token`: The token to use for `Bearer` authentication.
+/// * `allow_insecure`: Disable cert validation. Disables SSL authentication
+///
 pub struct PythonSyncClient {
     client: PythonAsyncClient,
     runtime: Runtime,
@@ -19,6 +33,7 @@ pub struct PythonSyncClient {
 impl PythonSyncClient {
     #[new]
     #[pyo3(signature = (host, username=None, token=None, password=None, allow_insecure=None))]
+    /// This method is for creating new instances of the SzurubooruSyncClient
     pub fn new(
         host: String,
         username: Option<String>,
@@ -32,12 +47,25 @@ impl PythonSyncClient {
     }
 
     #[pyo3(signature = (fields=None))]
+    /// List the available tag categories
     pub fn list_tag_categories(
         &self,
         fields: Option<Vec<String>>,
     ) -> PyResult<Vec<TagCategoryResource>> {
         self.runtime
             .block_on(self.client.list_tag_categories(fields))
+    }
+
+    #[pyo3(signature = (name, color=None, order=None, fields=None))]
+    pub fn create_tag_category(
+        &self,
+        name: String,
+        color: Option<String>,
+        order: Option<u32>,
+        fields: Option<Vec<String>>,
+    ) -> PyResult<TagCategoryResource> {
+        self.runtime
+            .block_on(self.client.create_tag_category(name, color, order, fields))
     }
 
     #[pyo3(signature = (name, version, color=None, order=None, fields=None))]
@@ -90,7 +118,8 @@ impl PythonSyncClient {
     #[pyo3(signature = (names, category=None, description=None, implications=None, suggestions=None, fields=None))]
     pub fn create_tag(
         &self,
-        names: Vec<String>,
+        //names: Vec<String>,
+        names: Py<PyAny>,
         category: Option<String>,
         description: Option<String>,
         implications: Option<Vec<String>>,
@@ -107,10 +136,12 @@ impl PythonSyncClient {
         ))
     }
 
-    #[pyo3(signature = (name, names, category=None, description=None, implications=None, suggestions=None, fields=None))]
+    #[pyo3(signature = (name, version, names=None, category=None, description=None,
+        implications=None, suggestions=None, fields=None))]
     pub fn update_tag(
         &self,
         name: String,
+        version: u32,
         names: Option<Vec<String>>,
         category: Option<String>,
         description: Option<String>,
@@ -120,6 +151,7 @@ impl PythonSyncClient {
     ) -> PyResult<TagResource> {
         self.runtime.block_on(self.client.update_tag(
             name,
+            version,
             names,
             category,
             description,
@@ -139,7 +171,7 @@ impl PythonSyncClient {
     }
 
     #[pyo3(signature = (remove_tag, remove_tag_version, merge_to_tag, merge_to_version, fields=None))]
-    pub fn merge_tag(
+    pub fn merge_tags(
         &self,
         remove_tag: String,
         remove_tag_version: u32,
@@ -147,7 +179,7 @@ impl PythonSyncClient {
         merge_to_version: u32,
         fields: Option<Vec<String>>,
     ) -> PyResult<TagResource> {
-        self.runtime.block_on(self.client.merge_tag(
+        self.runtime.block_on(self.client.merge_tags(
             remove_tag,
             remove_tag_version,
             merge_to_tag,
@@ -173,7 +205,7 @@ impl PythonSyncClient {
     }
 
     #[pyo3(signature = (url=None, token=None, file_path=None, thumbnail_path=None, tags=None, safety=None, source=None,
-            relations=None, notes=None, flags=None, fields=None))]
+            relations=None, notes=None, flags=None, anonymous=None, fields=None))]
     pub fn create_post(
         &self,
         url: Option<String>,
@@ -186,6 +218,7 @@ impl PythonSyncClient {
         relations: Option<Vec<u32>>,
         notes: Option<Vec<NoteResource>>,
         flags: Option<Vec<String>>,
+        anonymous: Option<bool>,
         fields: Option<Vec<String>>,
     ) -> PyResult<PostResource> {
         self.runtime.block_on(self.client.create_post(
@@ -199,6 +232,7 @@ impl PythonSyncClient {
             relations,
             notes,
             flags,
+            anonymous,
             fields,
         ))
     }
@@ -258,9 +292,9 @@ impl PythonSyncClient {
             .block_on(self.client.download_thumbnail_to_path(post_id, file_path))
     }
 
-    pub fn reverse_search_image(&self, image_path: PathBuf) -> PyResult<ImageSearchResult> {
+    pub fn reverse_image_search(&self, image_path: PathBuf) -> PyResult<ImageSearchResult> {
         self.runtime
-            .block_on(self.client.reverse_search_image(image_path))
+            .block_on(self.client.reverse_image_search(image_path))
     }
 
     pub fn post_for_image(&self, image_path: PathBuf) -> PyResult<Option<PostResource>> {
@@ -283,13 +317,14 @@ impl PythonSyncClient {
     }
 
     #[pyo3(signature = (remove_post, remove_post_version, merge_to_post,
-        merge_to_version, fields=None))]
+        merge_to_version, replace_post_content=false, fields=None))]
     pub fn merge_post(
         &self,
         remove_post: u32,
         remove_post_version: u32,
         merge_to_post: u32,
         merge_to_version: u32,
+        replace_post_content: bool,
         fields: Option<Vec<String>>,
     ) -> PyResult<PostResource> {
         self.runtime.block_on(self.client.merge_post(
@@ -297,6 +332,7 @@ impl PythonSyncClient {
             remove_post_version,
             merge_to_post,
             merge_to_version,
+            replace_post_content,
             fields,
         ))
     }
@@ -422,7 +458,7 @@ impl PythonSyncClient {
     #[pyo3(signature = (names, category=None, description=None, posts=None, fields=None))]
     pub fn create_pool(
         &self,
-        names: Vec<String>,
+        names: Py<PyAny>,
         category: Option<String>,
         description: Option<String>,
         posts: Option<Vec<u32>>,
@@ -622,17 +658,19 @@ impl PythonSyncClient {
             .block_on(self.client.list_user_tokens(user_name, fields))
     }
 
-    #[pyo3(signature = (user_name, note=None, expiration_time=None, fields=None))]
+    #[pyo3(signature = (user_name, note=None, enabled=None, expiration_time=None, fields=None))]
     pub fn create_user_token(
         &self,
         user_name: String,
         note: Option<String>,
+        enabled: Option<bool>,
         expiration_time: Option<DateTime<Utc>>,
         fields: Option<Vec<String>>,
     ) -> PyResult<UserAuthTokenResource> {
         self.runtime.block_on(self.client.create_user_token(
             user_name,
             note,
+            enabled,
             expiration_time,
             fields,
         ))
@@ -702,7 +740,7 @@ impl PythonSyncClient {
         self.runtime.block_on(self.client.global_info())
     }
 
-    pub fn upload_temporary_file(&self, file_path: PathBuf) -> PyResult<TemporaryFileUpload> {
+    pub fn upload_temporary_file(&self, file_path: PathBuf) -> PyResult<String> {
         self.runtime
             .block_on(self.client.upload_temporary_file(file_path))
     }

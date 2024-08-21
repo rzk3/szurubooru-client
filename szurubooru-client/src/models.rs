@@ -266,14 +266,12 @@ pub struct CreateUpdateTagCategory {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
 #[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[serde(rename_all = "camelCase")]
 /// Removes source tag and merges all of its usages, suggestions and implications to the target tag.
 /// Other tag properties such as category and aliases do not get transferred and are discarded.
 pub struct MergeTags {
     /// Version of the tag to remove
     #[serde(rename = "removeVersion")]
-    #[cfg(feature = "python")]
     pub remove_tag_version: u32,
     /// The name of the tag to remove
     #[serde(rename = "remove")]
@@ -514,6 +512,7 @@ pub struct CreateUpdatePost {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     /// Required field, represents the SFW/NSFW state of a post
+    #[builder(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub safety: Option<PostSafety>,
     /// The origin of the post's content
@@ -541,27 +540,21 @@ pub struct CreateUpdatePost {
     /// [upload_temporary_file](crate::SzurubooruRequest::upload_temporary_file)
     #[builder(default)]
     pub content_token: Option<String>,
+    /// Upload the post anonymously
+    #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anonymous: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 /// A token representing a temporary file upload
 pub struct TemporaryFileUpload {
     /// Temporary upload token
     pub token: String,
 }
 
-#[cfg(feature = "python")]
-#[cfg_attr(all(feature = "python"), pymethods)]
-impl TemporaryFileUpload {
-    fn __repr__(&self) -> String {
-        format!("{:?}", self)
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[builder(build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// Removes source post and merges all of its tags, relations, scores, favorites and comments to
@@ -647,61 +640,110 @@ pub enum UserAvatarStyle {
 #[serde(rename_all = "camelCase")]
 /// A single user
 pub struct UserResource {
-    #[cfg(feature = "python")]
-    #[pyo3(get)]
     /// Resource version. See [versioning](ResourceVersion)
-    pub version: Option<u32>,
     #[cfg(feature = "python")]
     #[pyo3(get)]
+    pub version: Option<u32>,
+
+    /// Resource version. See [versioning](ResourceVersion)
+    #[cfg(not(feature = "python"))]
+    pub version: Option<u32>,
+
     /// The user's username
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
     pub name: Option<String>,
+
+    /// The user's username
+    #[cfg(not(feature = "python"))]
+    pub name: Option<String>,
+
     /// The user email. It is available only if the request is authenticated by the same user,
     /// or the authenticated user can change the email. If it's unavailable, the server returns
     /// `false`. If the user hasn't specified an email, the server returns [None](Option::None)
     pub email: Option<SzuruEither<String, bool>>,
+
+    /// The user rank, which effectively affects their privileges
     #[cfg(feature = "python")]
     #[pyo3(get)]
-    /// The user rank, which effectively affects their privileges
     pub rank: Option<UserRank>,
+
+    /// The user rank, which effectively affects their privileges
+    #[cfg(not(feature = "python"))]
+    pub rank: Option<UserRank>,
+
+    /// The last login time
     #[cfg(feature = "python")]
     #[pyo3(get)]
     #[serde(rename = "last-login-time")]
-    /// The last login time
     pub last_login_time: Option<DateTime<Utc>>,
-    #[cfg(feature = "python")]
-    #[pyo3(get)]
-    #[serde(rename = "creation-time")]
-    /// The user registration time
-    pub creation_time: Option<DateTime<Utc>>,
-    #[cfg(feature = "python")]
-    #[pyo3(get)]
-    /// How to render the user avatar
-    pub avatar_style: Option<UserAvatarStyle>,
-    #[cfg(feature = "python")]
-    #[pyo3(get)]
-    /// The URL to the avatar
-    pub avatar_url: Option<String>,
+
+    /// The last login time
     #[cfg(not(feature = "python"))]
-    /// The URL to the avatar
-    pub avatar_url: Option<String>,
+    #[serde(rename = "last-login-time")]
+    pub last_login_time: Option<DateTime<Utc>>,
+
+    /// The user registration time
+    #[serde(rename = "creation-time")]
     #[cfg(feature = "python")]
     #[pyo3(get)]
+    pub creation_time: Option<DateTime<Utc>>,
+
+    /// The user registration time
+    #[serde(rename = "creation-time")]
+    #[cfg(not(feature = "python"))]
+    pub creation_time: Option<DateTime<Utc>>,
+
+    /// How to render the user avatar
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
+    pub avatar_style: Option<UserAvatarStyle>,
+
+    /// How to render the user avatar
+    #[cfg(not(feature = "python"))]
+    pub avatar_style: Option<UserAvatarStyle>,
+
+    /// The URL to the avatar
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
+    pub avatar_url: Option<String>,
+
+    /// The URL to the avatar
+    #[cfg(not(feature = "python"))]
+    pub avatar_url: Option<String>,
+
     /// Number of comments
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
     #[serde(rename = "comment-count")]
     pub comment_count: Option<u32>,
+
+    /// Number of comments
+    #[cfg(not(feature = "python"))]
+    #[serde(rename = "comment-count")]
+    pub comment_count: Option<u32>,
+
+    /// Number of uploaded posts
     #[cfg(feature = "python")]
     #[pyo3(get)]
-    /// Number of uploaded posts
     #[serde(rename = "uploaded-post-count")]
     pub uploaded_post_count: Option<u32>,
+
+    /// Number of uploaded posts
+    #[cfg(not(feature = "python"))]
+    #[serde(rename = "uploaded-post-count")]
+    pub uploaded_post_count: Option<u32>,
+
     /// Number of liked posts. It is available only if the request is authenticated by the same
     /// user. If it's unavailable, the server returns `false`
     #[serde(rename = "liked-post-count")]
     pub liked_post_count: Option<SzuruEither<u32, bool>>,
+
     /// Number of disliked posts. It is available only if the request is authenticated by the same
     /// user. If it's unavailable, the server returns `false`.
     #[serde(rename = "disliked-post-count")]
     pub disliked_post_count: Option<SzuruEither<u32, bool>>,
+
     /// Number of favorited posts
     #[serde(rename = "favorite-post-count")]
     pub favorite_post_count: Option<SzuruEither<u32, bool>>,
@@ -1108,7 +1150,6 @@ pub struct CreateUpdatePool {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
 #[builder(build_fn(error = "SzurubooruClientError"))]
-#[cfg_attr(all(feature = "python"), pyclass(get_all))]
 #[serde(rename_all = "camelCase")]
 /// This type is used to specify which pools should be merged. Uses the builder pattern like so:
 ///
@@ -1116,7 +1157,7 @@ pub struct CreateUpdatePool {
 /// use szurubooru_client::models::MergePoolBuilder;
 /// // Merge pool ID 1 at version 1 to pool ID 3 at version 5
 /// let merge_pool = MergePoolBuilder::default()
-///                     .remove_version(1)
+///                     .remove_pool_version(1)
 ///                     .remove(1)
 ///                     .merge_to_version(5)
 ///                     .merge_to(3)
@@ -1125,7 +1166,7 @@ pub struct CreateUpdatePool {
 /// ```
 pub struct MergePool {
     /// Version of the pool to remove. Must match the current Pool version
-    #[serde(rename = "removePool")]
+    #[serde(rename = "removeVersion")]
     pub remove_pool_version: u32,
     /// Pool ID to remove
     #[serde(rename = "remove")]
@@ -1304,11 +1345,17 @@ impl WithBaseURL for SnapshotCreationDeletionData {
 #[serde(rename_all = "camelCase")]
 /// Data for a modified resource
 pub struct SnapshotModificationData {
-    /// The type of snapshot
-    #[serde(rename = "type")]
     #[cfg(feature = "python")]
+    #[serde(rename = "type")]
     #[pyo3(get)]
+    /// The type of snapshot
     pub snapshot_type: String,
+
+    #[cfg(not(feature = "python"))]
+    #[serde(rename = "type")]
+    /// The type of snapshot
+    pub snapshot_type: String,
+
     /// The JSON value for the modified resource. A dictionary diff that depends on the resource
     /// kind.
     ///

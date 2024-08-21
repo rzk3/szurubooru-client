@@ -16,6 +16,8 @@ pub struct PythonAsyncClient {
 impl PythonAsyncClient {
     #[new]
     #[pyo3(signature = (host, username=None, token=None, password=None, allow_insecure=None))]
+    ///
+    ///
     pub fn new(
         host: String,
         username: Option<String>,
@@ -54,6 +56,30 @@ impl PythonAsyncClient {
             .list_tag_categories()
             .await
             .map(|ltc| ltc.results)
+            .map_err(Into::into)
+    }
+
+    #[pyo3(signature = (name, color=None, order=None, fields=None))]
+    pub async fn create_tag_category(
+        &self,
+        name: String,
+        color: Option<String>,
+        order: Option<u32>,
+        fields: Option<Vec<String>>,
+    ) -> PyResult<TagCategoryResource> {
+        let mut cutagcat = CreateUpdateTagCategoryBuilder::default();
+        cutagcat.name(name);
+        if let Some(color) = color {
+            cutagcat.color(color);
+        }
+        if let Some(order) = order {
+            cutagcat.order(order);
+        }
+        let cutagcat = cutagcat.build()?;
+        self.client
+            .with_optional_fields(fields)
+            .create_tag_category(&cutagcat)
+            .await
             .map_err(Into::into)
     }
 
@@ -134,7 +160,8 @@ impl PythonAsyncClient {
     #[pyo3(signature = (names, category=None, description=None, implications=None, suggestions=None, fields=None))]
     pub async fn create_tag(
         &self,
-        names: Vec<String>,
+        //names: Vec<String>,
+        names: Py<PyAny>,
         category: Option<String>,
         description: Option<String>,
         implications: Option<Vec<String>>,
@@ -142,7 +169,19 @@ impl PythonAsyncClient {
         fields: Option<Vec<String>>,
     ) -> PyResult<TagResource> {
         let mut cubuild = CreateUpdateTagBuilder::default();
-        cubuild.names(names);
+        Python::with_gil(|py| {
+            if let Ok(name) = names.extract::<String>(py) {
+                Ok(cubuild.names(vec![name]))
+            } else {
+                let list_res = names.extract::<Vec<String>>(py);
+                if let Ok(names) = list_res {
+                    Ok(cubuild.names(names))
+                } else {
+                    Err(list_res.err().unwrap())
+                }
+            }
+        })?;
+        //cubuild.names(names);
         if let Some(cat) = category {
             cubuild.category(cat);
         }
@@ -163,10 +202,11 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
-    #[pyo3(signature = (name, names, category=None, description=None, implications=None, suggestions=None, fields=None))]
+    #[pyo3(signature = (name, version, names=None, category=None, description=None, implications=None, suggestions=None, fields=None))]
     pub async fn update_tag(
         &self,
         name: String,
+        version: u32,
         names: Option<Vec<String>>,
         category: Option<String>,
         description: Option<String>,
@@ -175,6 +215,7 @@ impl PythonAsyncClient {
         fields: Option<Vec<String>>,
     ) -> PyResult<TagResource> {
         let mut cubuild = CreateUpdateTagBuilder::default();
+        cubuild.version(version);
         if let Some(names) = names {
             cubuild.names(names);
         }
@@ -220,7 +261,7 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (remove_tag, remove_tag_version, merge_to_tag, merge_to_version, fields=None))]
-    pub async fn merge_tag(
+    pub async fn merge_tags(
         &self,
         remove_tag: String,
         remove_tag_version: u32,
@@ -236,7 +277,7 @@ impl PythonAsyncClient {
             .build()?;
         self.client
             .with_optional_fields(fields)
-            .merge_tag(&mtags)
+            .merge_tags(&mtags)
             .await
             .map_err(Into::into)
     }
@@ -269,7 +310,7 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (url=None, token=None, file_path=None, thumbnail_path=None, tags=None, safety=None, source=None,
-            relations=None, notes=None, flags=None, fields=None))]
+            relations=None, notes=None, flags=None, anonymous=None, fields=None))]
     pub async fn create_post(
         &self,
         url: Option<String>,
@@ -282,6 +323,7 @@ impl PythonAsyncClient {
         relations: Option<Vec<u32>>,
         notes: Option<Vec<NoteResource>>,
         flags: Option<Vec<String>>,
+        anonymous: Option<bool>,
         fields: Option<Vec<String>>,
     ) -> PyResult<PostResource> {
         let mut cupost = CreateUpdatePostBuilder::default();
@@ -302,6 +344,9 @@ impl PythonAsyncClient {
         }
         if let Some(flags) = flags {
             cupost.flags(flags);
+        }
+        if let Some(anonymous) = anonymous {
+            cupost.anonymous(anonymous);
         }
 
         if let Some(token) = token {
@@ -447,7 +492,7 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
-    pub async fn reverse_search_image(&self, image_path: PathBuf) -> PyResult<ImageSearchResult> {
+    pub async fn reverse_image_search(&self, image_path: PathBuf) -> PyResult<ImageSearchResult> {
         self.client
             .request()
             .reverse_search_file_path(image_path)
@@ -458,7 +503,7 @@ impl PythonAsyncClient {
     pub async fn post_for_image(&self, image_path: PathBuf) -> PyResult<Option<PostResource>> {
         self.client
             .request()
-            .posts_for_file_path(image_path)
+            .post_for_file_path(image_path)
             .await
             .map_err(Into::into)
     }
@@ -493,13 +538,14 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (remove_post, remove_post_version, merge_to_post,
-        merge_to_version, fields=None))]
+        merge_to_version, replace_post_content=false, fields=None))]
     pub async fn merge_post(
         &self,
         remove_post: u32,
         remove_post_version: u32,
         merge_to_post: u32,
         merge_to_version: u32,
+        replace_post_content: bool,
         fields: Option<Vec<String>>,
     ) -> PyResult<PostResource> {
         let mpost = MergePostBuilder::default()
@@ -507,6 +553,7 @@ impl PythonAsyncClient {
             .remove_post(remove_post)
             .merge_to_version(merge_to_version)
             .merge_to_post(merge_to_post)
+            .replace_post_content(replace_post_content)
             .build()?;
         self.client
             .with_optional_fields(fields)
@@ -697,14 +744,26 @@ impl PythonAsyncClient {
     #[pyo3(signature = (names, category=None, description=None, posts=None, fields=None))]
     pub async fn create_pool<'py>(
         &self,
-        names: Vec<String>,
+        names: Py<PyAny>,
         category: Option<String>,
         description: Option<String>,
         posts: Option<Vec<u32>>,
         fields: Option<Vec<String>>,
     ) -> PyResult<PoolResource> {
         let mut cupool = CreateUpdatePoolBuilder::default();
-        cupool.names(names);
+        Python::with_gil(|py| {
+            if let Ok(name) = names.extract::<String>(py) {
+                Ok(cupool.names(vec![name]))
+            } else {
+                let list_res = names.extract::<Vec<String>>(py);
+                if let Ok(names) = list_res {
+                    Ok(cupool.names(names))
+                } else {
+                    Err(list_res.err().unwrap())
+                }
+            }
+        })?;
+        //cupool.names(names);
         if let Some(cat) = category {
             cupool.category(cat);
         }
@@ -885,15 +944,11 @@ impl PythonAsyncClient {
         rating: i8,
         fields: Option<Vec<String>>,
     ) -> PyResult<CommentResource> {
-        if rating < -1 || rating > 1 {
-            Err(PyValueError::new_err("Rating must be -1, 0, or 1"))
-        } else {
-            self.client
-                .with_optional_fields(fields)
-                .rate_comment(comment_id, rating)
-                .await
-                .map_err(Into::into)
-        }
+        self.client
+            .with_optional_fields(fields)
+            .rate_comment(comment_id, rating)
+            .await
+            .map_err(Into::into)
     }
 
     #[pyo3(signature = (query=None, fields=None, limit=None, offset=None))]
@@ -1024,11 +1079,12 @@ impl PythonAsyncClient {
             .map(|ur| ur.results)
     }
 
-    #[pyo3(signature = (user_name, note=None, expiration_time=None, fields=None))]
+    #[pyo3(signature = (user_name, note=None, enabled=None, expiration_time=None, fields=None))]
     pub async fn create_user_token(
         &self,
         user_name: String,
         note: Option<String>,
+        enabled: Option<bool>,
         expiration_time: Option<DateTime<Utc>>,
         fields: Option<Vec<String>>,
     ) -> PyResult<UserAuthTokenResource> {
@@ -1038,6 +1094,9 @@ impl PythonAsyncClient {
         }
         if let Some(etime) = expiration_time {
             cutoken.expiration_time(etime);
+        }
+        if let Some(enabled) = enabled {
+            cutoken.enabled(enabled);
         }
         let cutoken = cutoken.build()?;
         self.client
@@ -1137,11 +1196,12 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
-    pub async fn upload_temporary_file(&self, file_path: PathBuf) -> PyResult<TemporaryFileUpload> {
+    pub async fn upload_temporary_file(&self, file_path: PathBuf) -> PyResult<String> {
         self.client
             .request()
             .upload_temporary_file_from_path(file_path)
             .await
             .map_err(Into::into)
+            .map(|t| t.token)
     }
 }

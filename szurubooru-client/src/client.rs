@@ -420,12 +420,14 @@ impl<'a> SzurubooruRequest<'a> {
 
     async fn handle_response(&self, response: Response) -> SzurubooruResult<Response> {
         if response.status().is_client_error() || response.status().is_server_error() {
+            let status = response.status();
             let resp_json = response
                 .text()
                 .await
                 .map_err(SzurubooruClientError::RequestError)?;
+
             let server_error = serde_json::from_str::<SzurubooruServerError>(&resp_json)
-                .map_err(|e| SzurubooruClientError::ResponseParsingError(e, resp_json))?;
+                .map_err(|e| SzurubooruClientError::ResponseError(status, resp_json))?;
             Err(SzurubooruClientError::SzurubooruServerError(server_error))
         } else {
             Ok(response)
@@ -436,7 +438,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         request: RequestBuilder,
     ) -> SzurubooruResult<T> {
-        let request = request
+        let mut request = request
             .build()
             .map_err(SzurubooruClientError::RequestBuilderError)?;
 
@@ -450,6 +452,7 @@ impl<'a> SzurubooruRequest<'a> {
             .text()
             .await
             .map_err(SzurubooruClientError::RequestError)?;
+
         serde_json::from_str::<SzuruEither<T, SzurubooruServerError>>(&response_text)
             .map_err(|e| SzurubooruClientError::ResponseParsingError(e, response_text))?
             .into_result()
@@ -599,7 +602,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// Removes source tag and merges all of its usages, suggestions and implications to the
     /// target tag. Other tag properties such as category and aliases do not get transferred
     /// and are discarded.
-    pub async fn merge_tag(&self, merge_opts: &MergeTags) -> SzurubooruResult<TagResource> {
+    pub async fn merge_tags(&self, merge_opts: &MergeTags) -> SzurubooruResult<TagResource> {
         self.do_request(Method::POST, "/api/tag-merge", None, Some(merge_opts))
             .await
     }
@@ -639,6 +642,11 @@ impl<'a> SzurubooruRequest<'a> {
         method: Method,
         cupost: &CreateUpdatePost,
     ) -> SzurubooruResult<PostResource> {
+        if method == Method::POST && cupost.safety.is_none() {
+            return Err(SzurubooruClientError::ValidationError(
+                "Safety must be set".to_string(),
+            ));
+        }
         self.do_request(method, path, None, Some(cupost)).await
     }
 
@@ -1009,7 +1017,12 @@ impl<'a> SzurubooruRequest<'a> {
         path: impl AsRef<Path>,
     ) -> SzurubooruResult<()> {
         let mut stream = self.get_image_bytestream(post_id).await?;
-        let mut file = File::open(path.as_ref()).map_err(SzurubooruClientError::IOError)?;
+        let mut file = File::options()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(path.as_ref())
+            .map_err(SzurubooruClientError::IOError)?;
         self.write_content_to_file(&mut file, &mut stream).await
     }
 
@@ -1067,7 +1080,7 @@ impl<'a> SzurubooruRequest<'a> {
     // Need to add a reverse search for bytes
 
     /// Searches for an exact match of a file based on the SHA1 checksum
-    pub async fn posts_for_file(
+    pub async fn post_for_file(
         &self,
         mut file: &mut File,
     ) -> SzurubooruResult<Option<PostResource>> {
@@ -1081,21 +1094,17 @@ impl<'a> SzurubooruRequest<'a> {
             .list_posts(Some(&vec![qt]))
             .await
             .map(|psr| self.propagate_urls(psr))?;
-        Ok(if psr.total > 1 {
-            Some(psr.results.swap_remove(0))
-        } else {
-            None
-        })
+        Ok(psr.results.first().map(|pr| pr.clone()))
     }
 
     /// Searches for an exact match of a file path based on the SHA1 checksum
-    pub async fn posts_for_file_path(
+    pub async fn post_for_file_path(
         &self,
         file_path: impl AsRef<Path>,
     ) -> SzurubooruResult<Option<PostResource>> {
         let mut file = File::open(file_path).map_err(SzurubooruClientError::IOError)?;
 
-        self.posts_for_file(&mut file).await
+        self.post_for_file(&mut file).await
     }
 
     /// Retrieves information about an existing post.
@@ -1137,6 +1146,11 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Updates score of authenticated user for given post. Valid scores are -1, 0 and 1.
     pub async fn rate_post(&self, post_id: u32, score: i8) -> SzurubooruResult<PostResource> {
+        if score < -1 || score > 1 {
+            return Err(SzurubooruClientError::ValidationError(
+                "Score must be -1, 0 or 1".to_string(),
+            ));
+        }
         let rating_obj = RateResource { score };
         let path = format!("/api/post/{post_id}/score");
         self.do_request(Method::PUT, &path, None, Some(&rating_obj))
@@ -1380,6 +1394,11 @@ impl<'a> SzurubooruRequest<'a> {
         comment_id: u32,
         score: i8,
     ) -> SzurubooruResult<CommentResource> {
+        if score < -1 || score > 1 {
+            return Err(SzurubooruClientError::ValidationError(
+                "Score must be -1, 0 or 1".to_string(),
+            ));
+        }
         let path = format!("/api/comment/{comment_id}/score");
         let rating = RateResource { score };
         self.do_request(Method::PUT, &path, None, Some(&rating))

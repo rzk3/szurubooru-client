@@ -157,7 +157,7 @@ pub fn sort_token(key: &Bound<'_, PyAny>) -> PyResult<QueryToken> {
 
 #[cfg(feature = "python")]
 #[cfg_attr(all(feature = "python"), pyfunction)]
-pub fn anonymous_token(key: &Bound<'_, PyString>) -> PyResult<QueryToken> {
+pub fn anonymous_token(key: &Bound<'_, PyAny>) -> PyResult<QueryToken> {
     QueryToken::anonymous_py(key)
 }
 
@@ -183,7 +183,11 @@ impl QueryToken {
     #[pyo3(name = "token")]
     #[staticmethod]
     pub fn token_py(key: &Bound<'_, PyAny>, value: &Bound<'_, PyAny>) -> PyResult<Self> {
-        let value = value.extract::<String>()?;
+        let value = if let Ok(value) = value.extract::<u32>() {
+            value.to_string()
+        } else {
+            value.extract::<String>()?
+        };
 
         if let Ok(tnt) = key.extract::<TagNamedToken>() {
             Ok(QueryToken::token(tnt, value))
@@ -226,7 +230,7 @@ impl QueryToken {
 
     #[pyo3(name = "anonymous")]
     #[staticmethod]
-    pub fn anonymous_py(key: &Bound<'_, PyString>) -> PyResult<Self> {
+    pub fn anonymous_py(key: &Bound<'_, PyAny>) -> PyResult<Self> {
         let key = key.extract::<String>()?;
         Ok(QueryToken::anonymous(key))
     }

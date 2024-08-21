@@ -17,7 +17,7 @@ derive_builder = "0.20.0"
 futures-util = "0.3.30"
 hex = "0.4.3"
 openssl = { version = "0.10.66", features = ["vendored"] }
-pyo3 = { version="0.22.0", optional=true, features=["chrono-tz", "chrono", "extension-module", "serde", "experimental-async"] }
+pyo3 = { version="0.22.0", optional=true, features=["chrono-tz", "chrono", "serde", "experimental-async"] }
 reqwest = { version = "0.12.5", features = ["json", "multipart", "stream"] }
 serde = { version = "1.0.204", features = ["derive"] }
 serde-pyobject = { version = "0.4.0", optional = true }
@@ -36,9 +36,9 @@ mockito = "1.4.0"
 tokio = { version = "1.39.2", features = ["full"] }
 
 [features]
-python = ["dep:pyo3", "dep:tokio", "dep:serde-pyobject"]
-serde-pyobject = ["dep:serde-pyobject"]
+python = ["dep:pyo3", "dep:tokio", "dep:serde-pyobject", "pyo3/extension-module"]
+extension-module = ["pyo3/extension-module"]
 
 [lib]
 name = "szurubooru_client"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "lib"]
