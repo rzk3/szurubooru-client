@@ -15,6 +15,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -30,11 +34,13 @@ jobs:
     name: Rust Integration test
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - run: cd tests/rust-test && ./test.sh
   python_integration_test:
     name: Python Integration test
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - run: cd tests/python-sync && ./test.sh
   linux:
     runs-on: ${{ matrix.platform.runner }}
