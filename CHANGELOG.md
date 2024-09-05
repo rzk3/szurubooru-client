@@ -1,3 +1,21 @@
+## Unreleased
+
+### Feat
+
+- **all**: adding python library wrapper
+
+### Fix
+
+- **python**: refactoring python client
+- **cargo**: adding vendored openssl to help with build
+- **python-client**: fixing paged search results to use a PyList instead
+
+### Refactor
+
+- **python**: adding custom python modules to possibly help with documentation
+- **models**: removing unnecessary python classes
+- **models**: saving some changes in prep of python library
+
 ## v0.4.0 (2024-08-12)
 
 ### Feat
