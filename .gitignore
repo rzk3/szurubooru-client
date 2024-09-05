@@ -8,3 +8,4 @@ szurubooru-integration-test/szurubooru/server/*
 **/target
 *.so
 *.pyc
+/docs/_build/**
