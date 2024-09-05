@@ -36,6 +36,7 @@ pub mod models;
 pub mod tokens;
 
 #[cfg(feature = "python")]
+#[doc(hidden)]
 pub mod py;
 
 #[cfg(feature = "python")]
@@ -49,7 +50,7 @@ mod szurubooru_client {
 
     #[pymodule_export]
     pub use crate::{
-        errors::SzuruPyClientError,
+        errors::SzuruClientError,
         /*models::{
             AroundPostResult, CommentResource, GlobalInfo, ImageSearchResult,
             ImageSearchSimilarPost, MicroPoolResource, MicroPostResource, MicroTagResource,
@@ -66,6 +67,7 @@ mod szurubooru_client {
             UserNamedToken, UserSortToken,
         },*/
         py::asynchronous::PythonAsyncClient, py::synchronous::PythonSyncClient,
+        py::PyPagedSearchResult,
     };
 
     #[pymodule(name = "_tokens")]
@@ -77,7 +79,6 @@ mod szurubooru_client {
             PostSpecialToken, QueryToken, SnapshotNamedToken, TagNamedToken, TagSortToken,
             UserNamedToken, UserSortToken,
         };
-        use pyo3::prelude::*;
     }
 
     #[pymodule(name = "_models")]

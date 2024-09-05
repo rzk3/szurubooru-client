@@ -29,6 +29,6 @@ UserAvatarStyle = _models.UserAvatarStyle
 UserRank = _models.UserRank
 UserResource = _models.UserResource
 
-__doc__ = szurubooru_client.models.__doc__
-if hasattr(szurubooru_client.models, "__all__"):
-    __all__ = szurubooru_client.models.__all__
+__doc__ = _models.__doc__
+#if hasattr(_models, "__all__"):
+#    __all__ = getattr(_models, "__all__")

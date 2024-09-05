@@ -7,7 +7,10 @@ use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 use std::path::PathBuf;
 
-#[pyclass(name = "SzurubooruAsyncClient")]
+#[pyclass(name = "SzurubooruAsyncClient", module = "szurubooru_client")]
+/// An asynchronous client for Szurubooru
+///
+/// :see: :class:`~szurubooru_client.SzurubooruSyncClient` for supported parameters
 pub struct PythonAsyncClient {
     client: SzurubooruClient,
 }
@@ -16,8 +19,9 @@ pub struct PythonAsyncClient {
 impl PythonAsyncClient {
     #[new]
     #[pyo3(signature = (host, username=None, token=None, password=None, allow_insecure=None))]
+    /// Creates a new instance of the Asynchornous client
     ///
-    ///
+    /// :see: :class:`~szurubooru_client.SzurubooruSyncClient` for supported parameters
     pub fn new(
         host: String,
         username: Option<String>,
@@ -47,6 +51,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (fields=None))]
+    /// List the available tag categories (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.list_tag_categories` for parameters and return type
     pub async fn list_tag_categories(
         &self,
         fields: Option<Vec<String>>,
@@ -60,6 +67,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (name, color=None, order=None, fields=None))]
+    /// Creates a new tag category using the specified parameters (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.create_tag_category` for parameters and return type
     pub async fn create_tag_category(
         &self,
         name: String,
@@ -83,11 +93,15 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
-    #[pyo3(signature = (name, version, color=None, order=None, fields=None))]
+    #[pyo3(signature = (name, version, new_name=None, color=None, order=None, fields=None))]
+    /// Updates an existing tag category (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.update_tag_category` for parameters and return type
     pub async fn update_tag_category(
         &self,
         name: String,
         version: u32,
+        new_name: Option<String>,
         color: Option<String>,
         order: Option<u32>,
         fields: Option<Vec<String>>,
@@ -95,6 +109,9 @@ impl PythonAsyncClient {
         let mut cutag = CreateUpdateTagCategoryBuilder::default();
         let mut cutag = cutag.version(version);
 
+        if let Some(name) = new_name {
+            cutag = cutag.name(name);
+        }
         if let Some(color) = color {
             cutag = cutag.color(color);
         }
@@ -111,6 +128,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (name, fields=None))]
+    /// Fetches a tag category by name (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_tag_category` for parameters and return type
     pub async fn get_tag_category(
         &self,
         name: String,
@@ -123,6 +143,10 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    #[pyo3(signature = (name, version))]
+    /// Deletes a tag category (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.delete_tag_category` for parameters and return type
     pub async fn delete_tag_category(&self, name: String, version: u32) -> PyResult<()> {
         self.client
             .request()
@@ -131,6 +155,8 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    #[pyo3(signature = (name))]
+    /// Sets the default tag category for the site (async version)
     pub async fn set_default_tag_category(&self, name: String) -> PyResult<()> {
         self.client
             .request()
@@ -140,6 +166,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (query=None, fields=None, limit=None, offset=None))]
+    /// List the tags currently available on the site (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.list_tags` for parameters and return type
     pub async fn list_tags(
         &self,
         query: Option<Vec<QueryToken>>,
@@ -158,9 +187,11 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (names, category=None, description=None, implications=None, suggestions=None, fields=None))]
+    /// Creating a new tag (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.create_tag` for parameters and return type
     pub async fn create_tag(
         &self,
-        //names: Vec<String>,
         names: Py<PyAny>,
         category: Option<String>,
         description: Option<String>,
@@ -203,11 +234,15 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (name, version, names=None, category=None, description=None, implications=None, suggestions=None, fields=None))]
+    #[allow(clippy::too_many_arguments)]
+    /// Updates an existing tag (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.update_tag` for parameters and return type
     pub async fn update_tag(
         &self,
         name: String,
         version: u32,
-        names: Option<Vec<String>>,
+        names: Option<Py<PyAny>>,
         category: Option<String>,
         description: Option<String>,
         implications: Option<Vec<String>>,
@@ -217,7 +252,18 @@ impl PythonAsyncClient {
         let mut cubuild = CreateUpdateTagBuilder::default();
         cubuild.version(version);
         if let Some(names) = names {
-            cubuild.names(names);
+            Python::with_gil(|py| {
+                if let Ok(name) = names.extract::<String>(py) {
+                    Ok(cubuild.names(vec![name]))
+                } else {
+                    let list_res = names.extract::<Vec<String>>(py);
+                    if let Ok(names) = list_res {
+                        Ok(cubuild.names(names))
+                    } else {
+                        Err(list_res.err().unwrap())
+                    }
+                }
+            })?;
         }
         if let Some(cat) = category {
             cubuild.category(cat);
@@ -240,6 +286,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (name, fields=None))]
+    /// Fetches an existing tag (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_tag` for parameters and return type
     pub async fn get_tag(
         &self,
         name: String,
@@ -252,6 +301,10 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    #[pyo3(signature = (name, version))]
+    /// Deletes an existing tag (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.delete_tag` for parameters and return type
     pub async fn delete_tag(&self, name: String, version: u32) -> PyResult<()> {
         self.client
             .request()
@@ -261,6 +314,10 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (remove_tag, remove_tag_version, merge_to_tag, merge_to_version, fields=None))]
+    /// Removes source tag and merges all of its usages, suggestions and implications to the
+    /// target tag. (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.merge_tags` for parameters and return type
     pub async fn merge_tags(
         &self,
         remove_tag: String,
@@ -282,6 +339,11 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    #[pyo3(signature = (name))]
+    /// Lists siblings of given tag, e.g. tags that were used in the same posts as the given tag.
+    /// (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_tag_siblings` for parameters and return type
     pub async fn get_tag_siblings(&self, name: String) -> PyResult<Vec<TagSibling>> {
         self.client
             .request()
@@ -292,6 +354,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (query=None, fields=None, limit=None, offset=None))]
+    /// Lists the posts currently available on the site (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.list_posts` for parameters and return type
     pub async fn list_posts(
         &self,
         query: Option<Vec<QueryToken>>,
@@ -309,12 +374,16 @@ impl PythonAsyncClient {
             .map(Into::into)
     }
 
-    #[pyo3(signature = (url=None, token=None, file_path=None, thumbnail_path=None, tags=None, safety=None, source=None,
+    #[pyo3(signature = (url=None, upload_token=None, file_path=None, thumbnail_path=None, tags=None, safety=None, source=None,
             relations=None, notes=None, flags=None, anonymous=None, fields=None))]
+    #[allow(clippy::too_many_arguments)]
+    /// Create a new post using one of three image sources (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.create_post` for parameters and return type
     pub async fn create_post(
         &self,
         url: Option<String>,
-        token: Option<String>,
+        upload_token: Option<String>,
         file_path: Option<PathBuf>,
         thumbnail_path: Option<PathBuf>,
         tags: Option<Vec<String>>,
@@ -349,7 +418,7 @@ impl PythonAsyncClient {
             cupost.anonymous(anonymous);
         }
 
-        if let Some(token) = token {
+        if let Some(token) = upload_token {
             cupost.content_token(token);
             let cupost = cupost.build()?;
             self.client
@@ -382,6 +451,10 @@ impl PythonAsyncClient {
     #[pyo3(signature = (post_id, post_version, url=None, token=None, file_path=None,
         thumbnail_path=None, tags=None, safety=None, source=None, relations=None, notes=None,
         flags=None, fields=None))]
+    #[allow(clippy::too_many_arguments)]
+    /// Updates an existing post (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.update_post` for parameters and return type
     pub async fn update_post(
         &self,
         post_id: u32,
@@ -452,6 +525,10 @@ impl PythonAsyncClient {
         }
     }
 
+    #[pyo3(signature = (post_id))]
+    /// Downloads the given post's image as a byte array (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_image_bytes` for parameters and return type
     pub async fn get_image_bytes(&self, post_id: u32) -> PyResult<Vec<u8>> {
         let bytes = self
             .client
@@ -462,6 +539,10 @@ impl PythonAsyncClient {
         Ok(bytes)
     }
 
+    #[pyo3(signature = (post_id, file_path))]
+    /// Downloads the given post's image to a path on the filesystem
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.download_image_to_path` for parameters and return type
     pub async fn download_image_to_path(&self, post_id: u32, file_path: PathBuf) -> PyResult<()> {
         self.client
             .request()
@@ -470,6 +551,10 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    #[pyo3(signature = (post_id))]
+    /// Downloads the given post's thumbnail as a byte array
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_thumbnail_bytes` for parameters and return type
     pub async fn get_thumbnail_bytes<'py>(&self, post_id: u32) -> PyResult<Vec<u8>> {
         let bytes = self
             .client
@@ -480,6 +565,10 @@ impl PythonAsyncClient {
         Ok(bytes)
     }
 
+    #[pyo3(signature = (post_id, file_path))]
+    /// Downloads the given post's thumbnail to a path on the filesystem
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.` for parameters and return type
     pub async fn download_thumbnail_to_path(
         &self,
         post_id: u32,
@@ -492,6 +581,10 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    #[pyo3(signature = (image_path))]
+    /// Reverse image searches for an image from the filesystem (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.reverse_image_search` for parameters and return type
     pub async fn reverse_image_search(&self, image_path: PathBuf) -> PyResult<ImageSearchResult> {
         self.client
             .request()
@@ -500,6 +593,10 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    #[pyo3(signature = (image_path))]
+    /// Searches for an *exact* image match of an image from the filesystem (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.post_for_image` for parameters and return type
     pub async fn post_for_image(&self, image_path: PathBuf) -> PyResult<Option<PostResource>> {
         self.client
             .request()
@@ -509,6 +606,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (post_id, fields=None))]
+    /// Fetches an individual post by its post ID (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_post` for parameters and return type
     pub async fn get_post(
         &self,
         post_id: u32,
@@ -521,6 +621,10 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    /// Fetches posts from *around* the given post ID. That means the post before and after,
+    //  if they exist. (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_around_post` for parameters and return type
     pub async fn get_around_post(&self, post_id: u32) -> PyResult<AroundPostResult> {
         self.client
             .request()
@@ -529,6 +633,9 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    /// Deletes a post by its ID (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.delete_post` for parameters and return type
     pub async fn delete_post(&self, post_id: u32, version: u32) -> PyResult<()> {
         self.client
             .request()
@@ -539,6 +646,10 @@ impl PythonAsyncClient {
 
     #[pyo3(signature = (remove_post, remove_post_version, merge_to_post,
         merge_to_version, replace_post_content=false, fields=None))]
+    /// Removes source post and merges all of its tags, relations, scores, favorites and comments to
+    /// the target post (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.merge_post` for parameters and return type
     pub async fn merge_post(
         &self,
         remove_post: u32,
@@ -563,13 +674,17 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (post_id, rating, fields=None))]
+    /// Updates score of authenticated user for given post. Valid scores are -1, 0 and 1.
+    /// (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.rate_post` for parameters and return type
     pub async fn rate_post(
         &self,
         post_id: u32,
         rating: i8,
         fields: Option<Vec<String>>,
     ) -> PyResult<PostResource> {
-        if rating < -1 || rating > 1 {
+        if !(-1..=1).contains(&rating) {
             Err(PyValueError::new_err("Rating must be -1, 0, or 1"))
         } else {
             self.client
@@ -581,6 +696,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (post_id, fields=None))]
+    /// Marks the post as favorite for the current user (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.favorite_post` for parameters and return type
     pub async fn favorite_post(
         &self,
         post_id: u32,
@@ -594,6 +712,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (post_id, fields=None))]
+    /// Unmarks the post as favorite for the current user (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.unfavorite_post` for parameters and return type
     pub async fn unfavorite_post(
         &self,
         post_id: u32,
@@ -607,6 +728,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (fields=None))]
+    /// Retrieves the post that is currently featured on the main page (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_featured_post` for parameters and return type
     pub async fn get_featured_post(
         &self,
         fields: Option<Vec<String>>,
@@ -619,6 +743,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (post_id, fields=None))]
+    /// Features a post on the main page (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.set_featured_post` for parameters and return type
     pub async fn set_featured_post(
         &self,
         post_id: u32,
@@ -632,6 +759,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (fields=None))]
+    /// Lists all pool categories (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.list_pool_categories` for parameters and return type
     pub async fn list_pool_categories(
         &self,
         fields: Option<Vec<String>>,
@@ -645,6 +775,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (name, color=None, fields=None))]
+    /// Creates a new pool category using specified parameters (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.create_pool_category` for parameters and return type
     pub async fn create_pool_category(
         &self,
         name: String,
@@ -665,6 +798,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (name, version, new_name=None, color=None, fields=None))]
+    /// Updates an existing tag category using specified parameters (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.update_pool_category` for parameters and return type
     pub async fn update_pool_category(
         &self,
         name: String,
@@ -690,6 +826,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (name, fields=None))]
+    /// Fetches an existing pool category (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_pool_category` for parameters and return type
     pub async fn get_pool_category(
         &self,
         name: String,
@@ -702,6 +841,9 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    /// Deletes existing pool category (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.delete_pool_category` for parameters and return type
     pub async fn delete_pool_category(&self, name: String, version: u32) -> PyResult<()> {
         self.client
             .request()
@@ -711,6 +853,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (name, fields=None))]
+    /// Sets given pool category as default (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.set_default_pool_category` for parameters and return type
     pub async fn set_default_pool_category(
         &self,
         name: String,
@@ -724,6 +869,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (query=None, fields=None, limit=None, offset=None))]
+    /// List the post pools currently available on the site (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.list_pools` for parameters and return type
     pub async fn list_pools(
         &self,
         query: Option<Vec<QueryToken>>,
@@ -742,6 +890,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (names, category=None, description=None, posts=None, fields=None))]
+    /// Creates a new pool using specified parameters (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.create_pool` for parameters and return type
     pub async fn create_pool<'py>(
         &self,
         names: Py<PyAny>,
@@ -781,13 +932,17 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
-    #[pyo3(signature = (pool_id, version, names=None, category=None, description=None,
+    #[pyo3(signature = (pool_id, version, new_names=None, category=None, description=None,
         posts=None, fields=None))]
+    #[allow(clippy::too_many_arguments)]
+    /// Updates an existing pool using specified parameters (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.update_pool` for parameters and return type
     pub async fn update_pool(
         &self,
         pool_id: u32,
         version: u32,
-        names: Option<Vec<String>>,
+        new_names: Option<Vec<String>>,
         category: Option<String>,
         description: Option<String>,
         posts: Option<Vec<u32>>,
@@ -795,7 +950,7 @@ impl PythonAsyncClient {
     ) -> PyResult<PoolResource> {
         let mut cupool = CreateUpdatePoolBuilder::default();
         cupool.version(version);
-        if let Some(names) = names {
+        if let Some(names) = new_names {
             cupool.names(names);
         }
 
@@ -817,6 +972,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (pool_id, fields=None))]
+    /// Retrieves information about an existing pool (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_pool` for parameters and return type
     pub async fn get_pool(
         &self,
         pool_id: u32,
@@ -829,6 +987,9 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    /// Deletes existing pool (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.delete_pool` for parameters and return type
     pub async fn delete_pool(&self, pool_id: u32, version: u32) -> PyResult<()> {
         self.client
             .request()
@@ -838,6 +999,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (remove_pool, remove_pool_version, merge_to_pool, merge_to_version, fields=None))]
+    /// Removes source pool and merges all of its posts with the target pool. (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.merge_pools` for parameters and return type
     pub async fn merge_pools(
         &self,
         remove_pool: u32,
@@ -860,6 +1024,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (query=None, fields=None, limit=None, offset=None))]
+    /// List the comments currently available on the site (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.list_comments` for parameters and return type
     pub async fn list_comments(
         &self,
         query: Option<Vec<QueryToken>>,
@@ -878,6 +1045,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (text, post_id, fields=None))]
+    /// Creates a new comment under a given post (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.create_comment` for parameters and return type
     pub async fn create_comment(
         &self,
         text: String,
@@ -897,6 +1067,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (comment_id, version, text, fields=None))]
+    /// Updates an existing comment with new text (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.update_comment` for parameters and return type
     pub async fn update_comment(
         &self,
         comment_id: u32,
@@ -917,6 +1090,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (comment_id, fields=None))]
+    /// Fetches an existing comment (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_comment` for parameters and return type
     pub async fn get_comment(
         &self,
         comment_id: u32,
@@ -929,6 +1105,9 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    /// Deletes an existing comment (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.delete_comment` for parameters and return type
     pub async fn delete_comment(&self, comment_id: u32, version: u32) -> PyResult<()> {
         self.client
             .request()
@@ -938,6 +1117,10 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (comment_id, rating, fields=None))]
+    /// Updates score of authenticated user for given comment. Valid scores are -1, 0 and 1.
+    /// (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.rate_comment` for parameters and return type
     pub async fn rate_comment(
         &self,
         comment_id: u32,
@@ -952,6 +1135,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (query=None, fields=None, limit=None, offset=None))]
+    /// List the users currently registered on the site (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.list_users` for parameters and return type
     pub async fn list_users(
         &self,
         query: Option<Vec<QueryToken>>,
@@ -970,6 +1156,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (name, password, rank=None, avatar_path=None, fields=None))]
+    /// Creates a new user using specified parameters (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.create_user` for parameters and return type
     pub async fn create_user(
         &self,
         name: String,
@@ -1004,6 +1193,10 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (name, version, new_name=None, password=None, rank=None, avatar_path=None, fields=None))]
+    #[allow(clippy::too_many_arguments)]
+    /// Updates an existing user using specified parameters (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.update` for parameters and return type
     pub async fn update_user(
         &self,
         name: String,
@@ -1045,6 +1238,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (user_name, fields=None))]
+    /// Retrieves information about an existing user (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.get_user` for parameters and return type
     pub async fn get_user(
         &self,
         user_name: String,
@@ -1057,6 +1253,9 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    /// Deletes an existing user (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.delete_user` for parameters and return type
     pub async fn delete_user(&self, user_name: String, version: u32) -> PyResult<()> {
         self.client
             .request()
@@ -1066,6 +1265,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (user_name, fields=None))]
+    /// Fetches a list of the given user's auth tokens (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.list_user_tokens` for parameters and return type
     pub async fn list_user_tokens(
         &self,
         user_name: String,
@@ -1080,6 +1282,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (user_name, note=None, enabled=None, expiration_time=None, fields=None))]
+    /// Creates an auth token for the given user (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.create_user_token` for parameters and return type
     pub async fn create_user_token(
         &self,
         user_name: String,
@@ -1107,6 +1312,10 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (user_name, token, version, enabled=None, note=None, expiration_time=None, fields=None))]
+    #[allow(clippy::too_many_arguments)]
+    /// Update a user's existing auth token (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.update_user_token` for parameters and return type
     pub async fn update_user_token(
         &self,
         user_name: String,
@@ -1136,6 +1345,9 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    /// Deletes an existing user auth token (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.delete_user_token` for parameters and return type
     pub async fn delete_user_token(
         &self,
         user_name: String,
@@ -1149,6 +1361,9 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    /// Start a password reset request (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.password_reset_request` for parameters and return type
     pub async fn password_reset_request(&self, email_or_name: String) -> PyResult<()> {
         self.client
             .request()
@@ -1157,6 +1372,9 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    /// Confirm a password reset request (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.password_reset_confirm` for parameters and return type
     pub async fn password_reset_confirm(
         &self,
         email_or_name: String,
@@ -1171,6 +1389,9 @@ impl PythonAsyncClient {
     }
 
     #[pyo3(signature = (query=None, fields=None, limit=None, offset=None))]
+    /// List the snapshots currently available on the site (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.list_snapshots` for parameters and return type
     pub async fn list_snapshots(
         &self,
         query: Option<Vec<QueryToken>>,
@@ -1188,6 +1409,15 @@ impl PythonAsyncClient {
             .map(Into::into)
     }
 
+    /// Retrieves simple statistics. ``featured_post`` is ``None`` if there is no featured post yet.
+    /// ``server_time`` is pretty much the same as the Date HTTP
+    /// field, only formatted in a manner consistent with other dates. Values in config key are
+    /// taken directly from the server config, with the exception of privilege array keys being
+    /// converted to lower camel case to match the API convention.
+    ///
+    /// (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.global_info` for parameters and return type
     pub async fn global_info(&self) -> PyResult<GlobalInfo> {
         self.client
             .request()
@@ -1196,6 +1426,10 @@ impl PythonAsyncClient {
             .map_err(Into::into)
     }
 
+    /// Puts a file from a given file path in temporary storage and assigns it a token that can be
+    /// used in other requests. (async version)
+    ///
+    /// :see: :func:`~szurubooru_client.SzurubooruSyncClient.upload_temporary_file` for parameters and return type
     pub async fn upload_temporary_file(&self, file_path: PathBuf) -> PyResult<String> {
         self.client
             .request()

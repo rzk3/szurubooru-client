@@ -57,7 +57,7 @@ pub enum SzurubooruClientError {
     #[error("JSON Serialization error: {0}")]
     JSONSerializationError(#[source] serde_json::Error),
     /// Error when validation fails for one of the Builder types
-    #[error("Vlidation error: {0}")]
+    #[error("Validation error: {0}")]
     ValidationError(String),
     /// Error occurred when reading a file
     #[error("IO Error: {0}")]
@@ -80,12 +80,17 @@ impl From<UninitializedFieldError> for SzurubooruClientError {
 }
 
 #[cfg(feature = "python")]
-create_exception!(szurubooru_client, SzuruPyClientError, PyException);
+create_exception!(
+    szurubooru_client,
+    SzuruClientError,
+    PyException,
+    "An exception that contains two pieces of information: The error kind and error details"
+);
 
 #[cfg(feature = "python")]
 impl std::convert::From<SzurubooruClientError> for PyErr {
     fn from(value: SzurubooruClientError) -> Self {
-        SzuruPyClientError::new_err((value.as_ref().to_string(), value.to_string()))
+        SzuruClientError::new_err((value.as_ref().to_string(), value.to_string()))
     }
 }
 

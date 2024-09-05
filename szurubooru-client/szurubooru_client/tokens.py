@@ -19,5 +19,5 @@ UserNamedToken = _tokens.UserNamedToken
 UserSortToken = _tokens.UserSortToken
 
 __doc__ = _tokens.__doc__
-if hasattr(_tokens, "__all__"):
-    __all__ = getattr(_tokens, "__all__")
+#if hasattr(_tokens, "__all__"):
+#    __all__ = getattr(_tokens, "__all__")

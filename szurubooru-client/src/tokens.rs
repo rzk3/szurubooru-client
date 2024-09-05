@@ -3,9 +3,8 @@
 //! not guarantee that a given API endpoint will support the given tag.
 
 #[cfg(feature = "python")]
-use pyo3::{exceptions::PyValueError, prelude::*, types::*};
+use pyo3::{exceptions::PyValueError, prelude::*};
 use std::fmt::Display;
-use std::str::FromStr;
 use strum_macros::AsRefStr;
 
 /// A named token such as `foo:bar`
@@ -26,7 +25,7 @@ pub trait ToQueryString {
 
 /// A query token using for searching posts, tags and pools
 #[derive(Debug, Clone)]
-#[cfg_attr(all(feature = "python"), pyclass)]
+#[cfg_attr(all(feature = "python"), pyclass(module = "szurubooru_client.tokens"))]
 pub struct QueryToken {
     /// The key for this token. For `foo:bar` this would be `foo`
     pub key: String,
@@ -145,24 +144,106 @@ impl QueryToken {
 
 #[cfg(feature = "python")]
 #[cfg_attr(all(feature = "python"), pyfunction)]
+/// Generates a named token. Named tokens are used to filter resources returned by the API.
+/// An example of this would be returning posts with a certain safety value.
+///
+/// This function will accept any string, but if you want to be more sure about your code you
+/// can use any of the :ref:`Named token <named-tokens-enums>` types listed below.
+/// See the example below.
+///
+/// :param key: String or Named field
+/// :param value: The string or int value to use to filter by
+/// :returns: The named query token
+/// :rtype: QueryToken
+///
+/// -----
+/// Usage
+/// -----
+/// This lists all posts that are marked as 'safe'.
+///
+/// ```python
+/// client.list_posts(query=[named_token(PostNamedToken.Safety, 'safe')])
+/// ```
+///
+/// Which is equivalent to the possibly more error-prone:
+///
+/// ```python
+/// client.list_posts(query=[named_token("safety", 'safe')])
+/// ```
 pub fn named_token(key: &Bound<'_, PyAny>, value: &Bound<'_, PyAny>) -> PyResult<QueryToken> {
     QueryToken::token_py(key, value)
 }
 
 #[cfg(feature = "python")]
 #[cfg_attr(all(feature = "python"), pyfunction)]
+/// Generates a sorting token. Sorting tokens are used to sort resources returned by the API.
+/// An example of this would be returning posts by score descending.
+///
+/// This function will accept any string, but if you want to be more sure about your code you
+/// can use any of the :ref:`Sort token <sort-tokens-enums>` types listed below. See the example below.
+///
+/// :param key: String or Sort field name
+/// :returns: The sort query token
+/// :rtype: QueryToken
+///
+/// -----
+/// Usage
+/// -----
+/// This lists posts by score descending:
+///
+/// ```python
+/// client.list_posts(query=[-sort_token(PostSortToken.Score)])
+/// ```
+///
+/// Which is equivalent to the possibly more error-prone:
+///
+/// ```python
+/// client.list_posts(query=[-sort_token("score")])
+/// ```
 pub fn sort_token(key: &Bound<'_, PyAny>) -> PyResult<QueryToken> {
     QueryToken::sort_py(key)
 }
 
 #[cfg(feature = "python")]
 #[cfg_attr(all(feature = "python"), pyfunction)]
+/// Generates an anonymous token. Anonymous tokens are tokens that don't require some
+/// sort of prefix to be used in a search. What the anonymous tag corresponds to depends
+/// on the type of resource you're listing. For example, when listing posts the anonymous
+/// tags correspond to post tags
+///
+///
+/// :param str key: The anonymous token to create
+/// :returns: The anonymous query token
+/// :rtype: QueryToken
+///
+/// -----
+/// Usage
+/// -----
+///
+/// ```python
+/// client.list_posts(fields=[anonymous_token("cat")])
+/// ```
 pub fn anonymous_token(key: &Bound<'_, PyAny>) -> PyResult<QueryToken> {
     QueryToken::anonymous_py(key)
 }
 
 #[cfg(feature = "python")]
 #[cfg_attr(all(feature = "python"), pyfunction)]
+/// Special tokens are a very limited set of tokens supported by the ``list_posts`` API.
+/// They include being able to filter by posts that the current user has upvoted, or favorited.
+/// See :class:`PostSpecialToken` for all the supported token names.
+///
+/// :param key: The special token name, string or ``PostSpecialToken``
+///
+/// -----
+/// Usage
+/// -----
+///
+/// Selects posts with score of 0, without comments and without favorites
+///
+/// ```python
+/// client.list_post(fields=[special_token(PostSpecialToken.Tumbleweed)])
+/// ```
 pub fn special_token(key: &Bound<'_, PyAny>) -> PyResult<QueryToken> {
     QueryToken::special_py(key)
 }
@@ -171,17 +252,20 @@ pub fn special_token(key: &Bound<'_, PyAny>) -> PyResult<QueryToken> {
 #[cfg_attr(all(feature = "python"), pymethods)]
 impl QueryToken {
     #[pyo3(name = "__str__")]
+    /// Generates a string representation of this QueryToken
     pub fn to_python_string(&self) -> PyResult<String> {
         Ok(format!("QueryToken(\"{}\", \"{}\")", self.key, self.value))
     }
 
     #[pyo3(name = "__repr__")]
+    /// Generates a string representation of this QueryToken
     pub fn to_python_repr(&self) -> PyResult<String> {
         self.to_python_string()
     }
 
     #[pyo3(name = "token")]
     #[staticmethod]
+    #[doc(hidden)]
     pub fn token_py(key: &Bound<'_, PyAny>, value: &Bound<'_, PyAny>) -> PyResult<Self> {
         let value = if let Ok(value) = value.extract::<u32>() {
             value.to_string()
@@ -210,6 +294,7 @@ impl QueryToken {
 
     #[pyo3(name = "sort")]
     #[staticmethod]
+    #[doc(hidden)]
     pub fn sort_py(key: &Bound<'_, PyAny>) -> PyResult<Self> {
         if let Ok(tnt) = key.extract::<TagSortToken>() {
             Ok(QueryToken::sort(tnt))
@@ -230,6 +315,7 @@ impl QueryToken {
 
     #[pyo3(name = "anonymous")]
     #[staticmethod]
+    #[doc(hidden)]
     pub fn anonymous_py(key: &Bound<'_, PyAny>) -> PyResult<Self> {
         let key = key.extract::<String>()?;
         Ok(QueryToken::anonymous(key))
@@ -237,6 +323,7 @@ impl QueryToken {
 
     #[pyo3(name = "special")]
     #[staticmethod]
+    #[doc(hidden)]
     pub fn special_py(key: &Bound<'_, PyAny>) -> PyResult<Self> {
         if let Ok(special) = key.extract::<PostSpecialToken>() {
             Ok(QueryToken::special(special))
@@ -248,7 +335,13 @@ impl QueryToken {
     }
 
     #[pyo3(name = "negate")]
+    #[doc(hidden)]
     pub fn negate_py(&self) -> PyResult<Self> {
+        Ok(self.negate())
+    }
+
+    /// Negates the query token. Would turn ``konosuba`` into ``-konosuba``
+    pub fn __neg__(&self) -> PyResult<Self> {
         Ok(self.negate())
     }
 }
@@ -273,7 +366,10 @@ impl ToQueryString for Vec<QueryToken> {
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe named query tokens for use with [list_tags](crate::SzurubooruRequest::list_tags)
 pub enum TagNamedToken {
     /// having given name (accepts wildcards)
@@ -321,7 +417,10 @@ impl<'py> FromPyObject<'py> for TagNamedToken {
 
 #[derive(Debug, AsRefStr, Eq, PartialEq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe sort query tokens for use with [list_tags](crate::SzurubooruRequest::list_tags)
 pub enum TagSortToken {
     /// as random as it can get
@@ -357,7 +456,10 @@ impl SortableToken for TagSortToken {}
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe named query tokens for use with [list_posts](crate::SzurubooruRequest::list_posts)
 pub enum PostNamedToken {
     /// having given post number
@@ -392,8 +494,9 @@ pub enum PostNamedToken {
     RelationCount,
     /// having been featured given number of times
     FeatureCount,
-    /// given type of posts. `value` can be either `image`, `animation` (or `animated` or `anim`),
-    /// `flash` (or `swf`) or `video` (or `webm`). Use [models::PostType] for type-safe values
+    /// given type of posts. The value can be either `image`, `animation` (or `animated` or `anim`),
+    /// `flash` (or `swf`) or `video` (or `webm`). Use [PostType](crate::models::PostType)
+    /// for type-safe values
     Type,
     /// having given SHA1 checksum
     ContentChecksum,
@@ -445,8 +548,8 @@ pub enum PostNamedToken {
     FeatureDate,
     /// alias of [PostNamedToken::FeatureDate]
     FeatureTime,
-    /// having given safety. <value> can be either `safe`, `sketchy` (or `questionable`) or `unsafe`
-    /// Use [models::PostSafety] for the type-safe version
+    /// Post safety. Can be either `safe`, `sketchy` (or `questionable`) or `unsafe`
+    /// Use [PostSafety](crate::models::PostSafety) for the type-safe version
     Safety,
     /// alias of [PostNamedToken::Safety]
     Rating,
@@ -455,7 +558,10 @@ impl NamedToken for PostNamedToken {}
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe sort query tokens for use with [list_posts](crate::SzurubooruRequest::list_posts)
 pub enum PostSortToken {
     /// as random as it can get
@@ -498,7 +604,7 @@ pub enum PostSortToken {
     Date,
     /// alias of [PostSortToken::CreationDate]
     Time,
-    /// like [PostSortToken::CreationDate], only looks at last edit time
+    /// like [PostSortToken::CreationDate], only looks at last edit time instead
     LastEditDate,
     /// alias of [PostSortToken::LastEditDate]
     LastEditTime,
@@ -523,7 +629,10 @@ impl SortableToken for PostSortToken {}
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe special query tokens for use with [list_posts](crate::SzurubooruRequest::list_posts)
 pub enum PostSpecialToken {
     /// posts liked by currently logged-in user
@@ -539,7 +648,10 @@ impl SpecialToken for PostSpecialToken {}
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe named query tokens for use with [list_pools](crate::SzurubooruRequest::list_pools)
 pub enum PoolNamedToken {
     /// having given name (accepts wildcards)
@@ -565,7 +677,10 @@ impl NamedToken for PoolNamedToken {}
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe sort query tokens for use with [list_pools](crate::SzurubooruRequest::list_pools)
 pub enum PoolSortToken {
     /// as random as it can get
@@ -593,7 +708,10 @@ impl SortableToken for PoolSortToken {}
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe named query tokens for use with
 /// [list_comments](crate::SzurubooruRequest::list_comments)
 pub enum CommentNamedToken {
@@ -624,7 +742,10 @@ impl NamedToken for CommentNamedToken {}
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe sort query tokens for use with
 /// [list_comments](crate::SzurubooruRequest::list_comments)
 pub enum CommentSortToken {
@@ -653,7 +774,10 @@ impl SortableToken for CommentSortToken {}
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe named query tokens for use with [list_users](crate::SzurubooruRequest::list_users)
 pub enum UserNamedToken {
     /// having given name (accepts wildcards)
@@ -675,7 +799,10 @@ impl NamedToken for UserNamedToken {}
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe sort query tokens for use with [list_users](crate::SzurubooruRequest::list_users)
 pub enum UserSortToken {
     /// as random as it can get
@@ -699,7 +826,10 @@ impl SortableToken for UserNamedToken {}
 
 #[derive(Debug, AsRefStr, PartialEq, Eq, Clone)]
 #[strum(serialize_all = "kebab-case")]
-#[cfg_attr(all(feature = "python"), pyclass(eq, eq_int))]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.tokens")
+)]
 /// Type-safe named query tokens for use with
 /// [list_snapshots](crate::SzurubooruRequest::list_snapshots)
 pub enum SnapshotNamedToken {

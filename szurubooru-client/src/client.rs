@@ -128,10 +128,10 @@ impl SzurubooruClient {
 
     /// Construct a new request using the existing client auth and base URL
     /// All requests start with the [SzurubooruClient] struct.
-    /// The (request)[SzurubooruClient::request],
-    /// (with_fields)[SzurubooruClient::fields],
-    /// (limit)[SzurubooruClient::limit] and
-    /// (offset)[SzurubooruClient::offset] methods all return a [SzurubooruRequest] struct that will
+    /// The [request](crate::SzurubooruClient::request),
+    /// [with_fields](crate::SzurubooruClient::with_fields),
+    /// [with_limit](crate::SzurubooruClient::with_limit) and
+    /// [with_offset](crate::SzurubooruClient::with_offset) methods all return a [SzurubooruRequest] struct that will
     /// enable you to actually make the requests.
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
@@ -149,19 +149,19 @@ impl SzurubooruClient {
 
     /// Construct a new request while selecting only the given fields
     /// The Szurubooru API supports selecting a subset of fields for a given resource.
-    /// Most resource (models)[szurubooru_client::models] have [Option] fields because of that.
+    /// Most resource [models](crate::models) have [Option] fields because of that.
     /// The default is to return all fields for a given resource.
     /// See [here](https://github.com/rr-/szurubooru/blob/master/doc/API.md#field-selecting) for
     /// more details
     ///
     /// For example, to select only the `version`, `id` and `content_url` fields of a
-    /// (PostResource)[szurubooru_client::models::PostResource]
+    /// [PostResource]
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
     /// # #[allow(unused)]
     /// # async {
     /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
-    /// let new_request = client.request().with_fields(vec!["version", "id", "content_url"]);
+    /// let new_request = client.request().with_fields(vec!["version".to_string(), "id".to_string(), "content_url".to_string()]);
     /// # };
     /// # ()
     /// ```
@@ -169,7 +169,7 @@ impl SzurubooruClient {
         self.request().with_fields(fields)
     }
 
-    /// The same as (with_fields)[SzurubooruClient::with_fields], but accepts an Option type instead
+    /// The same as [with_fields](SzurubooruClient::with_fields), but accepts an Option type instead
     pub fn with_optional_fields(&self, fields: Option<Vec<String>>) -> SzurubooruRequest {
         self.request().with_optional_fields(fields)
     }
@@ -178,7 +178,7 @@ impl SzurubooruClient {
     /// The Szurubooru API supports limiting the number of resources returned for Paginated
     /// API endpoints.
     ///
-    /// For example, to limit the number of pools returned by (list_pools)[SzurubooruRequest::list_pools]
+    /// For example, to limit the number of pools returned by [list_pools](SzurubooruRequest::list_pools)
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
     /// # #[allow(unused)]
@@ -195,7 +195,7 @@ impl SzurubooruClient {
         self.request().with_limit(limit)
     }
 
-    /// The same as (with_limit)[SzurubooruClient::with_limit], but accepts an Option type instead
+    /// The same as [with_limit](SzurubooruClient::with_limit), but accepts an Option type instead
     pub fn with_optional_limit(&self, limit: Option<u32>) -> SzurubooruRequest {
         self.request().with_optional_limit(limit)
     }
@@ -205,7 +205,7 @@ impl SzurubooruClient {
     /// endpoints. Use this offset in combination with the limit to page through
     /// large result sets.
     ///
-    /// For example, to offset the list of pools returned by (list_pools)[SzurubooruRequest::list_pools]
+    /// For example, to offset the list of pools returned by [list_pools](SzurubooruRequest::list_pools)
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
     /// # #[allow(unused)]
@@ -222,7 +222,7 @@ impl SzurubooruClient {
         self.request().with_offset(offset)
     }
 
-    /// The same as (with_offset)[SzurubooruClient::with_offset], but accepts an Option type instead
+    /// The same as [with_offset](SzurubooruClient::with_offset), but accepts an Option type instead
     pub fn with_optional_offset(&self, offset: Option<u32>) -> SzurubooruRequest {
         self.request().with_optional_offset(offset)
     }
@@ -231,9 +231,13 @@ impl SzurubooruClient {
 #[derive(Debug)]
 /// A type that represents a single Szurubooru request.
 pub struct SzurubooruRequest<'a> {
-    fields: Option<Vec<String>>,
-    limit: Option<u32>,
-    offset: Option<u32>,
+    /// The currently selected fields to return (if applicable)
+    pub fields: Option<Vec<String>>,
+    /// The maximum number of resources to return (if supported by the API endpoint)
+    pub limit: Option<u32>,
+    /// The number of resource to skip before returning any results
+    /// (if supported by the API endpoint)
+    pub offset: Option<u32>,
     client: &'a SzurubooruClient,
 }
 
@@ -249,19 +253,19 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Select which fields to return from the query.
     /// The Szurubooru API supports selecting a subset of fields for a given resource.
-    /// Most resource (models)[szurubooru_client::models] have [Option] fields because of that.
+    /// Most resource [models](crate::models) have [Option] fields because of that.
     /// The default is to return all fields for a given resource.
     /// See [here](https://github.com/rr-/szurubooru/blob/master/doc/API.md#field-selecting) for
     /// more details
     ///
     /// For example, to select only the `version`, `id` and `content_url` fields of a
-    /// (PostResource)[szurubooru_client::models::PostResource]
+    /// [PostResource]
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
     /// # #[allow(unused)]
     /// # async {
     /// let client = SzurubooruClient::new_with_token("http://localhost:5001", "myuser", "sz-123456", true).unwrap();
-    /// let new_request = client.request().with_fields(vec!["version", "id", "content_url"]);
+    /// let new_request = client.request().with_fields(vec!["version".to_string(), "id".to_string(), "content_url".to_string()]);
     /// # };
     /// # ()
     /// ```
@@ -270,8 +274,8 @@ impl<'a> SzurubooruRequest<'a> {
         self
     }
 
-    /// The same as (with_fields)[SzurubooruRequest::with_fields], but accepts an Option type instead
-    pub fn with_optional_fields(mut self, val: Option<Vec<String>>) -> Self {
+    /// The same as [with_fields](SzurubooruRequest::with_fields), but accepts an Option type instead
+    pub fn with_optional_fields(self, val: Option<Vec<String>>) -> Self {
         match val {
             Some(f) => self.with_fields(f),
             None => self,
@@ -282,7 +286,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// The Szurubooru API supports limiting the number of resources returned for Paginated
     /// API endpoints.
     ///
-    /// For example, to limit the number of pools returned by (list_pools)[SzurubooruRequest::list_pools]
+    /// For example, to limit the number of pools returned by [list_pools](SzurubooruRequest::list_pools)
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
     /// # #[allow(unused)]
@@ -300,8 +304,8 @@ impl<'a> SzurubooruRequest<'a> {
         self
     }
 
-    /// The same as (with_limit)[SzurubooruRequest::with_limit], but accepts an Option type instead
-    pub fn with_optional_limit(mut self, val: Option<u32>) -> Self {
+    /// The same as [with_limit](SzurubooruRequest::with_limit), but accepts an Option type instead
+    pub fn with_optional_limit(self, val: Option<u32>) -> Self {
         match val {
             Some(f) => self.with_limit(f),
             None => self,
@@ -313,7 +317,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// endpoints. Use this offset in combination with the limit to page through
     /// large result sets.
     ///
-    /// For example, to offset the list of pools returned by (list_pools)[SzurubooruRequest::list_pools]
+    /// For example, to offset the list of pools returned by [list_pools](SzurubooruRequest::list_pools)
     /// ```no_run
     /// # use szurubooru_client::SzurubooruClient;
     /// # #[allow(unused)]
@@ -331,7 +335,7 @@ impl<'a> SzurubooruRequest<'a> {
         self
     }
 
-    /// The same as (with_offset)[SzurubooruRequest::with_offset], but accepts an Option type instead
+    /// The same as [with_offset](SzurubooruRequest::with_offset), but accepts an Option type instead
     pub fn with_optional_offset(self, val: Option<u32>) -> Self {
         match val {
             Some(f) => self.with_offset(f),
@@ -427,7 +431,7 @@ impl<'a> SzurubooruRequest<'a> {
                 .map_err(SzurubooruClientError::RequestError)?;
 
             let server_error = serde_json::from_str::<SzurubooruServerError>(&resp_json)
-                .map_err(|e| SzurubooruClientError::ResponseError(status, resp_json))?;
+                .map_err(|_e| SzurubooruClientError::ResponseError(status, resp_json))?;
             Err(SzurubooruClientError::SzurubooruServerError(server_error))
         } else {
             Ok(response)
@@ -438,7 +442,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         request: RequestBuilder,
     ) -> SzurubooruResult<T> {
-        let mut request = request
+        let request = request
             .build()
             .map_err(SzurubooruClientError::RequestBuilderError)?;
 
@@ -487,7 +491,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Updates an existing tag category using specified parameters. Name must match
     /// `tag_category_name_regex` from server's configuration. All fields except
-    /// [version](models::TagCategoryResource::version) are optional - update concerns only provided fields.
+    /// [version](crate::models::TagCategoryResource::version) are optional - update concerns only provided fields.
     pub async fn update_tag_category<T>(
         &self,
         name: T,
@@ -535,8 +539,9 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Searches for tags.
-    /// See the (named tokens)[tokens::TagNamedToken] and (sort tokens)[tokens::TagSortToken] for
-    /// all possible query tokens, or use (QueryToken)[tokens::QueryToken] for a custom token
+    /// See the [named tokens](crate::tokens::TagNamedToken) and
+    /// [sort tokens](crate::tokens::TagSortToken) for all possible query tokens, or use
+    /// [QueryToken] for a custom token
     pub async fn list_tags(
         &self,
         query: Option<&Vec<QueryToken>>,
@@ -547,7 +552,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Creates a new tag using specified parameters. Names, suggestions and implications must
     /// match `tag_name_regex` from server's configuration. Category must exist and is the same
-    /// as the `name` field within (TagCategoryResource)[models::TagCategoryResource] resource.
+    /// as the `name` field within [TagCategoryResource] resource.
     /// Suggestions and implications are optional. If specified implied tags or suggested tags do
     /// not exist yet, they will be automatically created. Tags created automatically have no
     /// implications, no suggestions, one name and their category is set to the first tag category
@@ -559,7 +564,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Updates an existing tag using specified parameters. Names, suggestions and implications must
     /// match `tag_name_regex` from server's configuration. Category must exist and is the same
-    /// as the `name` field within (TagCategoryResource)[models::TagCategoryResource] resource.
+    /// as the `name` field within [TagCategoryResource] resource.
     /// Suggestions and implications are optional. If specified implied tags or suggested tags do
     /// not exist yet, they will be automatically created. Tags created automatically have no
     /// implications, no suggestions, one name and their category is set to the first tag category
@@ -608,7 +613,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Lists siblings of given tag, e.g. tags that were used in the same posts as the given tag.
-    /// The (occurrences)[models::TagSibling::occurrences] field signifies how many times a given
+    /// The [occurrences](crate::models::TagSibling::occurrences) field signifies how many times a given
     /// sibling appears with given tag. Results are sorted by occurrences count and the list is
     /// truncated to the first 50 elements. Doesn't use paging.
     pub async fn get_tag_siblings<T>(
@@ -624,9 +629,8 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Searches for posts.
-    /// See (PostNamedToken)[tokens::PostNamedToken], (PostSortToken)[tokens::PostSortToken] and
-    /// (PostSpecialToken)[tokens::PostSpecialToken] for valid tokens to use with this method, or
-    /// use (QueryToken)[tokens::QueryToken] to construct a custom token
+    /// See [PostNamedToken], [PostSortToken] and [PostSpecialToken] for valid tokens to use with
+    /// this method, or use [QueryToken] to construct a custom token
     pub async fn list_posts(
         &self,
         query: Option<&Vec<QueryToken>>,
@@ -654,7 +658,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// the image.
     /// If specified tags do not exist yet, they will be automatically created. Tags created
     /// automatically have no implications, no suggestions, one name and their category is set to
-    /// the first tag category found. (safety)[models::CreateUpdatePost::safety] must be any of
+    /// the first tag category found. [safety](crate::models::CreateUpdatePost::safety) must be any of
     /// `safe`, `sketchy` or `unsafe`.
     /// Relations must contain valid post IDs. If `flag` is omitted, they will be defined by
     /// default (`"loop"` will be set for all video posts, and `"sound"` will be auto-detected).
@@ -672,7 +676,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Update an existing post
     /// See [SzurubooruRequest::create_post_from_url] for more details about the fields in
-    /// (CreateUpdatePost)[models::CreateUpdatePost]
+    /// [CreateUpdatePost]
     pub async fn update_post(
         &self,
         post_id: u32,
@@ -686,7 +690,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Update an existing post from a given URL
     /// See [SzurubooruRequest::create_post_from_url] for more details about the fields in
-    /// (CreateUpdatePost)[models::CreateUpdatePost]
+    /// [CreateUpdatePost]
     pub async fn update_post_from_url(
         &self,
         post_id: u32,
@@ -748,7 +752,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Create a new post from a file handle
     /// See [SzurubooruRequest::create_post_from_url] for more details about the fields in
-    /// (CreateUpdatePost)[models::CreateUpdatePost]
+    /// [CreateUpdatePost]
     pub async fn create_post_from_file<T>(
         &self,
         file: &mut File,
@@ -773,7 +777,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Create a new post from a file path
     /// See [SzurubooruRequest::create_post_from_url] for more details about the fields in
-    /// (CreateUpdatePost)[models::CreateUpdatePost]
+    /// [CreateUpdatePost]
     pub async fn create_post_from_file_path(
         &self,
         file_path: impl AsRef<Path>,
@@ -793,7 +797,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Create a post from a token previously generated by
-    /// (upload_temporary_file_from_path)[SzurubooruRequest::upload_temporary_file_from_path]
+    /// [upload_temporary_file_from_path](SzurubooruRequest::upload_temporary_file_from_path)
     pub async fn create_post_from_token(
         &self,
         new_post: &CreateUpdatePost,
@@ -814,7 +818,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Update an existing post from an open File handle
     /// See [SzurubooruRequest::create_post_from_url] for more details about the fields in
-    /// (CreateUpdatePost)[models::CreateUpdatePost]
+    /// [CreateUpdatePost]
     pub async fn update_post_from_file(
         &self,
         post_id: u32,
@@ -838,7 +842,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Update an existing post from a file path
     /// See [SzurubooruRequest::create_post_from_url] for more details about the fields in
-    /// (CreateUpdatePost)[models::CreateUpdatePost]
+    /// [CreateUpdatePost]
     pub async fn update_post_from_file_path(
         &self,
         post_id: u32,
@@ -888,7 +892,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Update a post from a token previously generated by
-    /// (upload_temporary_file_from_path)[SzurubooruRequest::upload_temporary_file_from_path]
+    /// [upload_temporary_file_from_path](SzurubooruRequest::upload_temporary_file_from_path)
     pub async fn update_post_from_token(
         &self,
         post_id: u32,
@@ -957,7 +961,7 @@ impl<'a> SzurubooruRequest<'a> {
             .map(|cr| cr.bytes_stream())
     }
 
-    ///Fetches the given post ID's image as a (Bytes)[bytes::Bytes] struct
+    ///Fetches the given post ID's image as a [Bytes](bytes::Bytes) struct
     pub async fn get_image_bytes(&self, post_id: u32) -> SzurubooruResult<bytes::Bytes> {
         let content_response = self.get_post_content(post_id, false).await?;
 
@@ -967,7 +971,7 @@ impl<'a> SzurubooruRequest<'a> {
             .map_err(SzurubooruClientError::RequestError)
     }
 
-    ///Fetches the given post ID's thumbnail as a (Bytes)[bytes::Bytes] struct
+    ///Fetches the given post ID's thumbnail as a [Bytes](bytes::Bytes) struct
     pub async fn get_thumbnail_bytes(&self, post_id: u32) -> SzurubooruResult<bytes::Bytes> {
         let content_response = self.get_post_content(post_id, true).await?;
 
@@ -1090,11 +1094,11 @@ impl<'a> SzurubooruRequest<'a> {
         let hex_string = hex::encode(hash);
 
         let qt = QueryToken::token(PostNamedToken::ContentChecksum, hex_string);
-        let mut psr = self
+        let psr = self
             .list_posts(Some(&vec![qt]))
             .await
             .map(|psr| self.propagate_urls(psr))?;
-        Ok(psr.results.first().map(|pr| pr.clone()))
+        Ok(psr.results.first().cloned())
     }
 
     /// Searches for an exact match of a file path based on the SHA1 checksum
@@ -1133,7 +1137,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     ///
     /// Removes source post and merges all of its tags, relations, scores, favorites and comments to
-    /// the target post. If [MergePost::replace_content] is set to `true`, content of the target post
+    /// the target post. If [MergePost::replace_post_content] is set to `true`, content of the target post
     /// is replaced using the content of the source post; otherwise it remains unchanged. Source
     /// post properties such as its safety, source, whether to loop the video and other scalar
     /// values do not get transferred and are discarded.
@@ -1146,7 +1150,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Updates score of authenticated user for given post. Valid scores are -1, 0 and 1.
     pub async fn rate_post(&self, post_id: u32, score: i8) -> SzurubooruResult<PostResource> {
-        if score < -1 || score > 1 {
+        if !(-1..=1).contains(&score) {
             return Err(SzurubooruClientError::ValidationError(
                 "Score must be -1, 0 or 1".to_string(),
             ));
@@ -1175,9 +1179,9 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Retrieves the post that is currently featured on the main page in web client. If no post is
-    /// featured, <post> is [Option::None]. Note that this method exists mostly for compatibility
-    /// with setting featured post - most of the time, you'd want to use query global info which
-    /// contains more information.
+    /// featured, the result will be [Option::None]. Note that this method exists mostly for
+    /// compatibility with setting featured post - most of the time, you'd want to use query global
+    /// info which contains more information.
     pub async fn get_featured_post(&self) -> SzurubooruResult<Option<PostResource>> {
         self.do_request(Method::GET, "/api/featured-post", None, None::<&String>)
             .await
@@ -1213,7 +1217,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Updates an existing tag category using specified parameters. Name must match
     /// `tag_category_name_regex` from server's configuration. All fields except the
-    /// [version](models::CreateUpdatePoolCategory::version) field are optional - update concerns
+    /// [version](crate::models::CreateUpdatePoolCategory::version) field are optional - update concerns
     /// only the provided fields.
     pub async fn update_pool_category<T>(
         &self,
@@ -1272,7 +1276,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Searches for pools.
-    /// Anonymous tokens are the same as the [name](tokens::PoolNamedToken::Name) token
+    /// Anonymous tokens are the same as the [name](crate::tokens::PoolNamedToken::Name) token
     pub async fn list_pools(
         &self,
         query: Option<&Vec<QueryToken>>,
@@ -1284,8 +1288,8 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Creates a new pool using specified parameters. Names, suggestions and implications must
     /// match `pool_name_regex` from server's configuration. Category must exist and is the same as
-    /// [name](models::PoolCategoryResource::name) field.
-    /// [posts](models::CreateUpdatePool::posts) is an optional list of integer post IDs. If the
+    /// [name](crate::models::PoolCategoryResource::name) field.
+    /// [posts](crate::models::CreateUpdatePool::posts) is an optional list of integer post IDs. If the
     /// specified posts do not exist, an error will be thrown.
     pub async fn create_pool(
         &self,
@@ -1296,14 +1300,14 @@ impl<'a> SzurubooruRequest<'a> {
             .map(|r| self.propagate_urls(r))
     }
 
-    /// Updates an existing pool using specified parameters. [name](models::CreateUpdatePool::name),
+    /// Updates an existing pool using specified parameters. [names](crate::models::CreateUpdatePool::names),
     /// must match `pool_name_regex` from server's configuration.
-    /// [category](models::CreateUpdatePool::category) must exist and is the same as
-    /// [name](models::PoolCategoryResource::name) field. [posts](models::CreateUpdatePool::posts)
+    /// [category](crate::models::CreateUpdatePool::category) must exist and is the same as
+    /// [name](crate::models::PoolCategoryResource::name) field. [posts](crate::models::CreateUpdatePool::posts)
     /// is an optional list of integer post IDs. If the specified posts do not exist yet, an error
     /// will be thrown. The full list of post IDs must be provided if they are being updated, and
     /// the previous list of posts will be replaced with the new one. All fields except
-    /// [version](models::CreateUpdatePool::version) are optional - update concerns only provided
+    /// [version](crate::models::CreateUpdatePool::version) are optional - update concerns only provided
     /// fields.
     pub async fn update_pool(
         &self,
@@ -1343,7 +1347,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Searches for comments.
-    /// Anonymous tokens are the same as the [text](tokens::CommentNamedToken::text) token
+    /// Anonymous tokens are the same as the [text](crate::tokens::CommentNamedToken::Text) token
     pub async fn list_comments(
         &self,
         query: Option<&Vec<QueryToken>>,
@@ -1394,7 +1398,7 @@ impl<'a> SzurubooruRequest<'a> {
         comment_id: u32,
         score: i8,
     ) -> SzurubooruResult<CommentResource> {
-        if score < -1 || score > 1 {
+        if !(-1..=1).contains(&score) {
             return Err(SzurubooruClientError::ValidationError(
                 "Score must be -1, 0 or 1".to_string(),
             ));
@@ -1406,9 +1410,8 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Searches for users
-    /// Anonymous tokens are the same as the [name](tokens::UserNamedToken)
-    /// See [UserNamedToken](tokens::UserNamedToken) and [UserSortToken](tokens::UserSortToken)
-    /// for type-safe tokens
+    /// Anonymous tokens are the same as the [name](crate::tokens::UserNamedToken::Name) token
+    /// See [UserNamedToken] and [UserSortToken] for type-safe tokens
     pub async fn list_users(
         &self,
         query: Option<&Vec<QueryToken>>,
@@ -1451,7 +1454,7 @@ impl<'a> SzurubooruRequest<'a> {
     /// Creates a new user using specified parameters. Names and passwords must match
     /// `user_name_regex` and `password_regex` from server's configuration, respectively.
     /// Email address, rank and avatar fields are optional. Avatar style can be either
-    /// [gravatar](models::UserAvatarStyle::Gravatar) or [manual](models::UserAvatarStyle::Manual).
+    /// [gravatar](crate::models::UserAvatarStyle::Gravatar) or [manual](crate::models::UserAvatarStyle::Manual).
     /// `manual` avatar style requires client to pass also the `avatar` file.
     /// If the rank is empty and the user happens to be the first user ever created,
     /// become an administrator, whereas subsequent users will be given the rank indicated by
@@ -1462,7 +1465,7 @@ impl<'a> SzurubooruRequest<'a> {
             .map(|r| self.propagate_urls(r))
     }
 
-    /// Create a [UserResource](models::UserResource) with the included Avatar file
+    /// Create a [UserResource] with the included Avatar file
     /// See [create_user](SzurubooruRequest::create_user) for other applicable fields and
     /// restrictions
     pub async fn create_user_with_avatar_file(
@@ -1482,7 +1485,7 @@ impl<'a> SzurubooruRequest<'a> {
         .map(|r| self.propagate_urls(r))
     }
 
-    /// Create a [UserResource](models::UserResource) with the included Avatar file path
+    /// Create a [UserResource] with the included Avatar file path
     /// See [create_user](SzurubooruRequest::create_user) for other applicable fields and
     /// restrictions
     pub async fn create_user_with_avatar_path(
@@ -1506,9 +1509,9 @@ impl<'a> SzurubooruRequest<'a> {
     /// Updates user using specified parameters. Names and passwords must match
     /// `user_name_regex` and `password_regex` from server's configuration, respectively.
     /// Email address, rank and avatar fields are optional. Avatar style can be either
-    /// [gravatar](models::UserAvatarStyle::Gravatar) or [manual](models::UserAvatarStyle::Manual).
+    /// [gravatar](crate::models::UserAvatarStyle::Gravatar) or [manual](crate::models::UserAvatarStyle::Manual).
     /// `manual` avatar style requires client to pass also the `avatar` file.
-    /// All fields except the [version](models::CreateUpdateUser::version) are optional
+    /// All fields except the [version](crate::models::CreateUpdateUser::version) are optional
     /// - update concerns only provided fields.
     pub async fn update_user<T>(
         &self,
@@ -1524,7 +1527,7 @@ impl<'a> SzurubooruRequest<'a> {
             .map(|r| self.propagate_urls(r))
     }
 
-    /// Update a [UserResource](models::UserResource) with the included Avatar file
+    /// Update a [UserResource] with the included Avatar file
     /// See [update_user](SzurubooruRequest::update_user) for other applicable fields and
     /// restrictions
     pub async fn update_user_with_avatar_file<T>(
@@ -1549,7 +1552,7 @@ impl<'a> SzurubooruRequest<'a> {
         .map(|r| self.propagate_urls(r))
     }
 
-    /// Update a [UserResource](models::UserResource) with the included Avatar file path
+    /// Update a [UserResource] with the included Avatar file path
     /// See [update_user](SzurubooruRequest::update_user) for other applicable fields and
     /// restrictions
     pub async fn update_user_with_avatar_path<T>(
@@ -1629,7 +1632,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Updates an existing user token using specified parameters. All fields except the
-    /// [version](models::CreateUpdateUserAuthToken::version) are optional - update concerns only
+    /// [version](crate::models::CreateUpdateUserAuthToken::version) are optional - update concerns only
     /// provided fields.
     pub async fn update_user_token<T>(
         &self,
@@ -1647,7 +1650,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Deletes an existing user token using specified parameters. All fields except the
-    /// [version](models::CreateUpdateUserAuthToken::version) are optional - update concerns only
+    /// [version](crate::models::CreateUpdateUserAuthToken::version) are optional - update concerns only
     /// provided fields.
     pub async fn delete_user_token<T>(
         &self,
@@ -1700,7 +1703,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Lists recent resource snapshots.
-    /// See [SnapshotNamedToken](tokens::SnapshotNamedToken) for query tokens.
+    /// See [SnapshotNamedToken] for query tokens.
     /// There are no sort tokens. The snapshots are always sorted by creation time.
     pub async fn list_snapshots(
         &self,
@@ -1711,11 +1714,11 @@ impl<'a> SzurubooruRequest<'a> {
             .map(|r| self.propagate_urls(r))
     }
 
-    /// Retrieves simple statistics. [featured_post](models::GlobalInfo::featured_post) is
-    /// [None](Option::None) if there is no featured post yet.
-    /// [server_time](models::GlobalInfo::server_time) is pretty much the same as the Date HTTP
+    /// Retrieves simple statistics. [featured_post](crate::models::GlobalInfo::featured_post) is
+    /// [None] if there is no featured post yet.
+    /// [server_time](crate::models::GlobalInfo::server_time) is pretty much the same as the Date HTTP
     /// field, only formatted in a manner consistent with other dates. Values in config key are
-    /// taken directly from the server config, with the exception of privilege array keys being
+    /// taken directly from the server config, except for the privilege array keys being
     /// converted to lower camel case to match the API convention.
     pub async fn get_global_info(&self) -> SzurubooruResult<GlobalInfo> {
         self.do_request(Method::GET, "/api/info", None, None::<&String>)
