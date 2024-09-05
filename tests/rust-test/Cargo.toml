@@ -1,12 +1,12 @@
 [package]
-name = "szurubooru-integration-test"
+name = "rust-test"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 chrono = "0.4.38"
 sha1 = "0.10.6"
-szurubooru-client = { path = "../szurubooru-client" }
+szurubooru-client = { path = "../../szurubooru-client" }
 tempfile = "3.12.0"
 tokio = { version = "1.39.2", features = ["full", "test-util", "tracing"] }
 tracing = "0.1.40"

@@ -24,7 +24,7 @@ services:
       THREADS:
     volumes:
       - "sz-data:/data"
-      - "${SERVER_MOUNT}/config.yaml:/opt/app/config.yaml"
+      - "./config.yaml:/opt/app/config.yaml"
 
   client:
     image: szurubooru/client:latest
@@ -32,11 +32,11 @@ services:
       - server
     environment:
       BACKEND_HOST: server
-      BASE_URL: ${BASE_URL}
+      BASE_URL: http://localhost:9802
     volumes:
       - "sz-data:/data:ro"
     ports:
-      - "${PORT}:80"
+      - "9802:80"
 
   sql:
     image: postgres:11-alpine

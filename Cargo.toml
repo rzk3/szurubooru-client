@@ -2,5 +2,7 @@
 resolver = "2"
 members = [
     "szurubooru-client",
-    "szurubooru-integration-test"
+    #"szurubooru-integration-test",
+    "tests/rust-test"
 ]
+default-members = ["szurubooru-client"]

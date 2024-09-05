@@ -5,11 +5,17 @@
 //! See [here](https://github.com/rr-/szurubooru/blob/master/doc/API.md#field-selecting) for
 //! more information.
 
+use crate::errors::SzurubooruClientError;
 use chrono::{DateTime, Utc};
 use derive_builder::Builder;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use strum_macros::AsRefStr;
+
+#[cfg(feature = "python")]
+use pyo3::prelude::*;
+#[cfg(feature = "python")]
+use serde_pyobject::to_pyobject;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -39,16 +45,16 @@ impl<T: WithBaseURL> WithBaseURL for UnpagedSearchResult<T> {
 #[derive(Debug, Serialize, Deserialize)]
 /// A result of search operation that involves paging
 ///
-/// Use (offset)[crate::SzurubooruRequest::offset] and (limit)[crate::SzurubooruRequest::limit]
+/// Use [offset](crate::SzurubooruRequest::with_offset) and [limit](crate::SzurubooruRequest::with_limit)
 /// to fetch the next page
 pub struct PagedSearchResult<T> {
     /// The original query for the request
     pub query: String,
-    /// The number of [T] to skip forward
+    /// The number of `T` to skip forward
     pub offset: u32,
-    /// The maximum number of [T] to return
+    /// The maximum number of `T` to return
     pub limit: u32,
-    /// The total number of [T] that match the [query](PagedSearchResult::query)
+    /// The total number of `T` that match the [query](PagedSearchResult::query)
     pub total: u32,
     /// The results themselves
     pub results: Vec<T>,
@@ -82,6 +88,10 @@ impl<T: WithBaseURL> WithBaseURL for Vec<T> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, eq, module = "szurubooru_client.models")
+)]
 /// A [tag resource](TagResource) stripped down to `names`, `category` and `usages` fields.
 pub struct MicroTagResource {
     /// The tag names and aliases
@@ -90,6 +100,16 @@ pub struct MicroTagResource {
     pub category: String,
     /// The number of times this tag has been used
     pub usages: u32,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl MicroTagResource {
+    /// Function that generates the representation string for this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,8 +136,12 @@ pub struct ResourceVersion {
     pub version: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 /// A single tag. Tags are used to let users search for posts.
 pub struct TagResource {
     /// resource version. See [versioning](ResourceVersion)
@@ -144,9 +168,19 @@ pub struct TagResource {
     pub description: Option<String>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl TagResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 /// Creates or updates a tag using specified parameters. Names, suggestions and implications must
 /// match `tag_name_regex` from server's configuration. Category must exist and is the same as name
-/// field within <tag-category> resource. Suggestions and implications are optional. If specified
+/// field within [TagCategoryResource] resource. Suggestions and implications are optional. If specified
 /// implied tags or suggested tags do not exist yet, they will be automatically created. Tags
 /// created automatically have no implications, no suggestions, one name and their category is set
 /// to the first tag category found. If there are no tag categories established yet, an error
@@ -161,7 +195,8 @@ pub struct TagResource {
 ///                 .expect("A new tag");
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[builder(setter(strip_option))]
+//#[builder(pattern="owned")]
+#[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 pub struct CreateUpdateTag {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
@@ -189,7 +224,11 @@ pub struct CreateUpdateTag {
     pub suggestions: Option<Vec<String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 /// A single tag category. The primary purpose of tag categories is to distinguish certain tag
 /// types (such as characters, media type etc.), which improves user experience.
 pub struct TagCategoryResource {
@@ -207,8 +246,19 @@ pub struct TagCategoryResource {
     pub default: Option<bool>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl TagCategoryResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Builder)]
-#[builder(setter(strip_option))]
+#[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
+
 /// Used for creating or updating a Tag Category
 pub struct CreateUpdateTagCategory {
     /// Resource version. See [versioning](ResourceVersion)
@@ -230,22 +280,29 @@ pub struct CreateUpdateTagCategory {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
+#[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
-#[builder(setter(into))]
 /// Removes source tag and merges all of its usages, suggestions and implications to the target tag.
 /// Other tag properties such as category and aliases do not get transferred and are discarded.
 pub struct MergeTags {
     /// Version of the tag to remove
-    pub remove_version: u32,
+    #[serde(rename = "removeVersion")]
+    pub remove_tag_version: u32,
     /// The name of the tag to remove
-    pub remove: String,
+    #[serde(rename = "remove")]
+    pub remove_tag: String,
     /// The version of the tag to merge TO
     pub merge_to_version: u32,
     /// The name of the tag to merge TO
-    pub merge_to: String,
+    #[serde(rename = "mergeTo")]
+    pub merge_to_tag: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 /// Lists siblings of given tag, e.g. tags that were used in the same posts as the given tag
 pub struct TagSibling {
     /// The related tag
@@ -254,7 +311,21 @@ pub struct TagSibling {
     pub occurrences: u32,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl TagSibling {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, AsRefStr, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// The type of post
 pub enum PostType {
@@ -277,6 +348,10 @@ pub enum PostType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, AsRefStr, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// How SFW/NSFW the post is
 pub enum PostSafety {
@@ -284,13 +359,17 @@ pub enum PostSafety {
     Safe,
     /// Post is possibly NSFW
     Sketchy,
-    /// Alias of (Sketchy)[PostSafety::Sketchy]
+    /// Alias of [Sketchy](PostSafety::Sketchy)
     Questionable,
     /// Post is NSFW
     Unsafe,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// A post resource stripped down to `id` and `thumbnailUrl` fields.
 pub struct MicroPostResource {
@@ -298,6 +377,16 @@ pub struct MicroPostResource {
     pub id: u32,
     /// The thumbnail URL of the post
     pub thumbnail_url: String,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl MicroPostResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 impl WithBaseURL for MicroPostResource {
@@ -320,6 +409,10 @@ pub(crate) struct PostId {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// A post resource
 pub struct PostResource {
@@ -394,6 +487,16 @@ pub struct PostResource {
     pub pools: Option<Vec<PoolResource>>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl PostResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for PostResource {
     fn with_base_url(self, url: &str) -> Self {
         let curl = self.content_url.map(|cu| {
@@ -429,7 +532,7 @@ impl WithBaseURL for PostResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[builder(setter(strip_option))]
+#[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// A `struct` used to create or update a post. For updating purposes
 /// the [version](CreateUpdatePost::version) field is required
@@ -445,6 +548,7 @@ pub struct CreateUpdatePost {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     /// Required field, represents the SFW/NSFW state of a post
+    #[builder(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub safety: Option<PostSafety>,
     /// The origin of the post's content
@@ -472,6 +576,10 @@ pub struct CreateUpdatePost {
     /// [upload_temporary_file](crate::SzurubooruRequest::upload_temporary_file)
     #[builder(default)]
     pub content_token: Option<String>,
+    /// Upload the post anonymously
+    #[builder(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anonymous: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -483,7 +591,7 @@ pub struct TemporaryFileUpload {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[builder(setter(into))]
+#[builder(build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// Removes source post and merges all of its tags, relations, scores, favorites and comments to
 /// the target post. If replaceContent is set to true, content of the target post is replaced using
@@ -492,15 +600,19 @@ pub struct TemporaryFileUpload {
 /// and are discarded.
 pub struct MergePost {
     /// The version of the post to remove
-    pub remove_version: u32,
+    #[serde(rename = "removeVersion")]
+    pub remove_post_version: u32,
     /// The ID of the post to remove
-    pub remove: u32,
+    #[serde(rename = "remove")]
+    pub remove_post: u32,
     /// The version of the post to merge TO
     pub merge_to_version: u32,
     /// The post ID of the post to merge TO
-    pub merge_to: u32,
+    #[serde(rename = "mergeTo")]
+    pub merge_to_post: u32,
     /// Whether to replace the content
-    pub replace_content: bool,
+    #[serde(rename = "replaceContent")]
+    pub replace_post_content: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -510,6 +622,10 @@ pub struct RateResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// A text annotation rendered on top of the post
 pub struct NoteResource {
@@ -522,7 +638,21 @@ pub struct NoteResource {
     pub text: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl NoteResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// The Rank of a given User
 pub enum UserRank {
@@ -538,7 +668,11 @@ pub enum UserRank {
     Administrator,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// The kind of User Avatar
 pub enum UserAvatarStyle {
@@ -548,47 +682,173 @@ pub enum UserAvatarStyle {
     Manual,
 }
 
+// Because pyo3 get_all doesn't let you exclude fields we have to define the fields twice
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(all(feature = "python"), pyclass(module = "szurubooru_client.models"))]
 #[serde(rename_all = "camelCase")]
 /// A single user
 pub struct UserResource {
     /// Resource version. See [versioning](ResourceVersion)
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
     pub version: Option<u32>,
+
+    /// Resource version. See [versioning](ResourceVersion)
+    #[cfg(not(feature = "python"))]
+    pub version: Option<u32>,
+
     /// The user's username
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
     pub name: Option<String>,
+
+    /// The user's username
+    #[cfg(not(feature = "python"))]
+    pub name: Option<String>,
+
     /// The user email. It is available only if the request is authenticated by the same user,
     /// or the authenticated user can change the email. If it's unavailable, the server returns
     /// `false`. If the user hasn't specified an email, the server returns [None](Option::None)
     pub email: Option<SzuruEither<String, bool>>,
+
     /// The user rank, which effectively affects their privileges
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
     pub rank: Option<UserRank>,
-    #[serde(rename = "last-login-time")]
+
+    /// The user rank, which effectively affects their privileges
+    #[cfg(not(feature = "python"))]
+    pub rank: Option<UserRank>,
+
     /// The last login time
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
+    #[serde(rename = "last-login-time")]
     pub last_login_time: Option<DateTime<Utc>>,
-    #[serde(rename = "creation-time")]
+
+    /// The last login time
+    #[cfg(not(feature = "python"))]
+    #[serde(rename = "last-login-time")]
+    pub last_login_time: Option<DateTime<Utc>>,
+
     /// The user registration time
+    #[serde(rename = "creation-time")]
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
     pub creation_time: Option<DateTime<Utc>>,
+
+    /// The user registration time
+    #[serde(rename = "creation-time")]
+    #[cfg(not(feature = "python"))]
+    pub creation_time: Option<DateTime<Utc>>,
+
     /// How to render the user avatar
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
     pub avatar_style: Option<UserAvatarStyle>,
+
+    /// How to render the user avatar
+    #[cfg(not(feature = "python"))]
+    pub avatar_style: Option<UserAvatarStyle>,
+
     /// The URL to the avatar
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
     pub avatar_url: Option<String>,
+
+    /// The URL to the avatar
+    #[cfg(not(feature = "python"))]
+    pub avatar_url: Option<String>,
+
     /// Number of comments
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
     #[serde(rename = "comment-count")]
     pub comment_count: Option<u32>,
+
+    /// Number of comments
+    #[cfg(not(feature = "python"))]
+    #[serde(rename = "comment-count")]
+    pub comment_count: Option<u32>,
+
     /// Number of uploaded posts
+    #[cfg(feature = "python")]
+    #[pyo3(get)]
     #[serde(rename = "uploaded-post-count")]
     pub uploaded_post_count: Option<u32>,
+
+    /// Number of uploaded posts
+    #[cfg(not(feature = "python"))]
+    #[serde(rename = "uploaded-post-count")]
+    pub uploaded_post_count: Option<u32>,
+
     /// Number of liked posts. It is available only if the request is authenticated by the same
     /// user. If it's unavailable, the server returns `false`
     #[serde(rename = "liked-post-count")]
     pub liked_post_count: Option<SzuruEither<u32, bool>>,
+
     /// Number of disliked posts. It is available only if the request is authenticated by the same
     /// user. If it's unavailable, the server returns `false`.
     #[serde(rename = "disliked-post-count")]
     pub disliked_post_count: Option<SzuruEither<u32, bool>>,
+
     /// Number of favorited posts
     #[serde(rename = "favorite-post-count")]
     pub favorite_post_count: Option<SzuruEither<u32, bool>>,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl UserResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    #[getter]
+    #[pyo3(name = "email")]
+    /// Returns this resource's email field, if the current user has permission to see it
+    pub fn email_py(&self) -> PyResult<Option<String>> {
+        match &self.email {
+            None => Ok(None),
+            Some(SzuruEither::Left(s)) => Ok(Some(s.to_string())),
+            Some(SzuruEither::Right(_)) => Ok(None),
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "liked_post_count")]
+    /// Returns this resource's liked_post_count, if the current user has permission to see it
+    pub fn liked_post_count_py(&self) -> PyResult<Option<u32>> {
+        match &self.liked_post_count {
+            None => Ok(None),
+            Some(SzuruEither::Left(s)) => Ok(Some(*s)),
+            Some(SzuruEither::Right(_)) => Ok(None),
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "disliked_post_count")]
+    /// Returns this resource's disliked_post_count, if the current user has permission to see it
+    pub fn disliked_post_count_py(&self) -> PyResult<Option<u32>> {
+        match &self.disliked_post_count {
+            None => Ok(None),
+            Some(SzuruEither::Left(s)) => Ok(Some(*s)),
+            Some(SzuruEither::Right(_)) => Ok(None),
+        }
+    }
+
+    #[getter]
+    #[pyo3(name = "favorite_post_count")]
+    /// Returns this resource's favorite_post_count, if the current user has permission to see it
+    pub fn favorite_post_count_py(&self) -> PyResult<Option<u32>> {
+        match &self.favorite_post_count {
+            None => Ok(None),
+            Some(SzuruEither::Left(s)) => Ok(Some(*s)),
+            Some(SzuruEither::Right(_)) => Ok(None),
+        }
+    }
 }
 
 impl WithBaseURL for UserResource {
@@ -608,7 +868,7 @@ impl WithBaseURL for UserResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Builder)]
-#[builder(setter(strip_option))]
+#[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// `struct` used to create or update a user resource. The version field is only used when
 /// updating an existing resource
@@ -637,6 +897,10 @@ pub struct CreateUpdateUser {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// A user resource stripped down to `name` and `avatarUrl` fields
 pub struct MicroUserResource {
@@ -644,6 +908,16 @@ pub struct MicroUserResource {
     pub name: String,
     /// The user's avatar URL
     pub avatar_url: String,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl MicroUserResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 impl WithBaseURL for MicroUserResource {
@@ -660,6 +934,10 @@ impl WithBaseURL for MicroUserResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "kebab-case")]
 /// A single user token
 pub struct UserAuthTokenResource {
@@ -683,6 +961,16 @@ pub struct UserAuthTokenResource {
     pub last_usage_time: Option<DateTime<Utc>>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl UserAuthTokenResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for UserAuthTokenResource {
     fn with_base_url(self, url: &str) -> Self {
         Self {
@@ -693,7 +981,7 @@ impl WithBaseURL for UserAuthTokenResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[builder(setter(into, strip_option))]
+#[builder(setter(into, strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "kebab-case")]
 /// `struct` to create or update a UserAuthToken. `version` is only required when updating an
 /// existing resource
@@ -733,6 +1021,10 @@ pub struct TemporaryPassword {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// Simple server configuration
 pub struct GlobalInfoConfig {
@@ -757,6 +1049,10 @@ pub struct GlobalInfoConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// Simple server statistics
 pub struct GlobalInfo {
@@ -776,7 +1072,21 @@ pub struct GlobalInfo {
     pub config: GlobalInfoConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl GlobalInfo {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// A single pool category. The primary purpose of pool categories is to distinguish certain pool
 /// types (such as series, relations etc.), which improves user experience.
@@ -793,8 +1103,18 @@ pub struct PoolCategoryResource {
     pub default: Option<bool>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl PoolCategoryResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Builder)]
-#[builder(setter(strip_option))]
+#[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 /// `struct` used for creating or updating a pool category. This type uses a Builder pattern like
 /// so:
 ///
@@ -823,6 +1143,10 @@ pub struct CreateUpdatePoolCategory {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// Type that represents a Pool resource
 pub struct PoolResource {
@@ -847,6 +1171,16 @@ pub struct PoolResource {
     pub description: Option<String>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl PoolResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for PoolResource {
     fn with_base_url(self, url: &str) -> Self {
         PoolResource {
@@ -857,7 +1191,7 @@ impl WithBaseURL for PoolResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[builder(setter(strip_option))]
+#[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// This type is used when creating or updating a pool object. It uses the builder pattern like so:
 ///
@@ -897,6 +1231,7 @@ pub struct CreateUpdatePool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
+#[builder(build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// This type is used to specify which pools should be merged. Uses the builder pattern like so:
 ///
@@ -904,25 +1239,32 @@ pub struct CreateUpdatePool {
 /// use szurubooru_client::models::MergePoolBuilder;
 /// // Merge pool ID 1 at version 1 to pool ID 3 at version 5
 /// let merge_pool = MergePoolBuilder::default()
-///                     .remove_version(1)
-///                     .remove(1)
+///                     .remove_pool_version(1)
+///                     .remove_pool(1)
 ///                     .merge_to_version(5)
-///                     .merge_to(3)
+///                     .merge_to_pool(3)
 ///                     .build()
 ///                     .unwrap();
 /// ```
 pub struct MergePool {
     /// Version of the pool to remove. Must match the current Pool version
-    pub remove_version: u32,
+    #[serde(rename = "removeVersion")]
+    pub remove_pool_version: u32,
     /// Pool ID to remove
-    pub remove: u32,
+    #[serde(rename = "remove")]
+    pub remove_pool: u32,
     /// Version of the pool to merge TO
     pub merge_to_version: u32,
     /// Pool ID of the pool to merge TO
-    pub merge_to: u32,
+    #[serde(rename = "mergeTo")]
+    pub merge_to_pool: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// A micro resource representing a Pool. A subset of the fields of a [PoolResource].
 pub struct MicroPoolResource {
@@ -938,7 +1280,21 @@ pub struct MicroPoolResource {
     pub description: Option<String>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl MicroPoolResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// A type representing a Comment on a post
 pub struct CommentResource {
@@ -962,8 +1318,18 @@ pub struct CommentResource {
     pub own_score: Option<i32>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl CommentResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Builder, Default)]
-#[builder(setter(strip_option))]
+#[builder(setter(strip_option), build_fn(error = "SzurubooruClientError"))]
 #[serde(rename_all = "camelCase")]
 /// This type is used when creating or updating a comment. This type uses the builder pattern like
 /// so:
@@ -992,7 +1358,11 @@ pub struct CreateUpdateComment {
     pub post_id: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// The kind of snapshot that has been recorded
 pub enum SnapshotOperationType {
@@ -1006,7 +1376,11 @@ pub enum SnapshotOperationType {
     Merged,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, eq_int, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// The kind of resource described by this snapshot
 pub enum SnapshotResourceType {
@@ -1024,7 +1398,11 @@ pub enum SnapshotResourceType {
     PoolCategory,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase", untagged)]
 /// Data for a resource that was created
 #[allow(clippy::large_enum_variant)]
@@ -1041,6 +1419,16 @@ pub enum SnapshotCreationDeletionData {
     PoolCategory(PoolCategoryResource),
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl SnapshotCreationDeletionData {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for SnapshotCreationDeletionData {
     fn with_base_url(self, url: &str) -> Self {
         match self {
@@ -1055,13 +1443,25 @@ impl WithBaseURL for SnapshotCreationDeletionData {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// Data for a modified resource
 pub struct SnapshotModificationData {
-    /// The type of snapshot
+    #[cfg(feature = "python")]
     #[serde(rename = "type")]
+    #[pyo3(get)]
+    /// The type of snapshot
     pub snapshot_type: String,
+
+    #[cfg(not(feature = "python"))]
+    #[serde(rename = "type")]
+    /// The type of snapshot
+    pub snapshot_type: String,
+
     /// The JSON value for the modified resource. A dictionary diff that depends on the resource
     /// kind.
     ///
@@ -1070,7 +1470,28 @@ pub struct SnapshotModificationData {
     pub value: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl SnapshotModificationData {
+    #[getter]
+    /// Get the value associated with this snapshot
+    pub fn get_value(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
+        let obj = to_pyobject(py, &self.value).unwrap().unbind();
+        Ok(obj)
+    }
+
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(eq, module = "szurubooru_client.models")
+)]
 #[serde(untagged)]
 /// Type representing the data as part of a snapshot
 #[allow(clippy::large_enum_variant)]
@@ -1095,6 +1516,10 @@ impl WithBaseURL for SnapshotData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// Overall type representing some sort of change to a resource
 pub struct SnapshotResource {
@@ -1113,6 +1538,16 @@ pub struct SnapshotResource {
     pub time: Option<DateTime<Utc>>,
 }
 
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl SnapshotResource {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
+}
+
 impl WithBaseURL for SnapshotResource {
     fn with_base_url(self, url: &str) -> Self {
         SnapshotResource {
@@ -1124,6 +1559,10 @@ impl WithBaseURL for SnapshotResource {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// A result when searching for similar posts to a given image
 pub struct ImageSearchSimilarPost {
@@ -1131,6 +1570,16 @@ pub struct ImageSearchSimilarPost {
     pub distance: f32,
     /// The post in question
     pub post: PostResource,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl ImageSearchSimilarPost {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 impl WithBaseURL for ImageSearchSimilarPost {
@@ -1143,6 +1592,10 @@ impl WithBaseURL for ImageSearchSimilarPost {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 #[serde(rename_all = "camelCase")]
 /// A type to represent the result from an Image search request
 pub struct ImageSearchResult {
@@ -1152,6 +1605,16 @@ pub struct ImageSearchResult {
     /// the input file. Works only on images and animations, does not work for videos and
     /// Flash movies.
     pub similar_posts: Vec<ImageSearchSimilarPost>,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl ImageSearchResult {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 impl WithBaseURL for ImageSearchResult {
@@ -1164,12 +1627,26 @@ impl WithBaseURL for ImageSearchResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(
+    all(feature = "python"),
+    pyclass(get_all, module = "szurubooru_client.models")
+)]
 /// A type that represents posts that are before or after an existing post
 pub struct AroundPostResult {
     /// A previous post, if it exists
     prev: Option<u32>,
     /// The next post, if it exists
     next: Option<u32>,
+}
+
+#[cfg(feature = "python")]
+#[cfg_attr(all(feature = "python"), pymethods)]
+#[doc(hidden)]
+impl AroundPostResult {
+    /// Generates a representative string of this resource
+    fn __repr__(&self) -> String {
+        format!("{:?}", self)
+    }
 }
 
 #[cfg(test)]

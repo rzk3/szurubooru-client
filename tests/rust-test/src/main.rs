@@ -77,20 +77,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 #[tracing::instrument]
 async fn start_instance() -> SzurubooruClient {
-    info!("Starting Szurubooru instance...");
+    info!("Connecting to Szurubooru instance...");
     let anon_client = SzurubooruClient::new_anonymous("http://localhost:9801", true)
         .expect("Can't create anonymous client");
-
-    Command::new("sh")
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
-        .arg("-c")
-        .arg("./start_szurubooru.sh")
-        .stderr(Stdio::null())
-        .stdout(Stdio::null())
-        .stdin(Stdio::null())
-        .status()
-        .await
-        .expect("Failed to start szurubooru");
 
     let mut connected = false;
     let mut error = None;
@@ -220,7 +209,11 @@ async fn test_tags(client: &SzurubooruClient) {
 
     info!("Testing field selection");
     let tag_list = client
-        .with_fields(vec!["version", "names", "category"])
+        .with_fields(vec![
+            "version".to_string(),
+            "names".to_string(),
+            "category".to_string(),
+        ])
         .list_tags(None)
         .await
         .expect("Could not list tags");
@@ -269,15 +262,15 @@ async fn test_tags(client: &SzurubooruClient) {
 
     info!("Merging tags");
     let merge_tag = MergeTagsBuilder::default()
-        .remove_version(bar_tag.version)
-        .remove(bar_tag.names.as_ref().unwrap().first().unwrap())
+        .remove_tag_version(bar_tag.version)
+        .remove_tag(bar_tag.names.as_ref().unwrap().first().unwrap().clone())
         .merge_to_version(tag_res3.version)
-        .merge_to(tag_res3.names.as_ref().unwrap().first().unwrap())
+        .merge_to_tag(tag_res3.names.as_ref().unwrap().first().unwrap().clone())
         .build()
         .expect("Could not create merge tags object");
     let merged_tag = client
         .request()
-        .merge_tag(&merge_tag)
+        .merge_tags(&merge_tag)
         .await
         .expect("Could not merge tags");
     assert_eq!(tag_res3.names, merged_tag.names);
@@ -357,7 +350,7 @@ async fn test_creating_posts(client: &SzurubooruClient) {
         .safety(PostSafety::Safe)
         .build()
         .expect("Could not build first upload object");
-    let folly1_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly1.jpg");
+    let folly1_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../folly1.jpg");
     let mut folly1_file =
         File::open(&folly1_path).expect(&format!("Could not open file {folly1_path:?}"));
     let _folly1_post = client
@@ -376,7 +369,7 @@ async fn test_creating_posts(client: &SzurubooruClient) {
         .safety(PostSafety::Safe)
         .build()
         .expect("Could not build second upload object");
-    let folly2_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly2.jpg");
+    let folly2_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../folly2.jpg");
     let _folly2_post = client
         .request()
         .create_post_from_file_path(folly2_path, None::<String>, &folly2_obj)
@@ -393,8 +386,8 @@ async fn test_creating_posts(client: &SzurubooruClient) {
         .safety(PostSafety::Safe)
         .build()
         .expect("Could not build third upload object");
-    let folly3_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly3.jpg");
-    let folly3_thumbnail = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly3_thumb.jpg");
+    let folly3_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../folly3.jpg");
+    let folly3_thumbnail = Path::new(env!("CARGO_MANIFEST_DIR")).join("../folly3_thumb.jpg");
     let folly3_post = client
         .request()
         .create_post_from_file_path(&folly3_path, Some(folly3_thumbnail), &folly3_obj)
@@ -404,10 +397,10 @@ async fn test_creating_posts(client: &SzurubooruClient) {
     info!("Searching for post by image");
     let matching_posts = client
         .request()
-        .posts_for_file_path(&folly3_path)
+        .post_for_file_path(&folly3_path)
         .await
         .expect("Could not search for post by file path");
-    assert_eq!(matching_posts.results.first().unwrap(), &folly3_post);
+    assert_eq!(&matching_posts.unwrap(), &folly3_post);
 
     info!("Reverse searching");
     let matching_posts = client
@@ -418,7 +411,7 @@ async fn test_creating_posts(client: &SzurubooruClient) {
     assert!(matching_posts.exact_post.is_some());
 
     info!("Testing temporary upload");
-    let folly4_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly4.jpg");
+    let folly4_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../folly4.jpg");
     let folly4_temp_upload = client
         .request()
         .upload_temporary_file_from_path(folly4_path)
@@ -681,10 +674,10 @@ async fn test_pools(client: &SzurubooruClient) {
 
     info!("Merging pools");
     let merge_pool_obj = MergePoolBuilder::default()
-        .remove_version(catz_pool.version.unwrap())
-        .remove(catz_pool.id.unwrap())
+        .remove_pool_version(catz_pool.version.unwrap())
+        .remove_pool(catz_pool.id.unwrap())
         .merge_to_version(cat_pool.version.unwrap())
-        .merge_to(cat_pool.id.unwrap())
+        .merge_to_pool(cat_pool.id.unwrap())
         .build()
         .expect("Unable to build merge object");
     let _cat_pool = client
@@ -790,7 +783,7 @@ async fn test_users(client: &SzurubooruClient) {
 
     // Create user is already tested above
     info!("Creating user with avatar");
-    let avatar_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("avatar.jpg");
+    let avatar_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../avatar.jpg");
     let create_user = CreateUpdateUserBuilder::default()
         .name("iu2".to_string())
         .password("ipass2".to_string())
@@ -892,7 +885,7 @@ async fn test_snapshots(client: &SzurubooruClient) {
 async fn test_downloads(client: &SzurubooruClient) {
     info!("Testing image download");
 
-    let folly3_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("folly3.jpg");
+    let folly3_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../folly3.jpg");
 
     let mut f3_hasher = Sha1::new();
 
