@@ -1,4 +1,6 @@
 from szurubooru_client import *
+from szurubooru_client.tokens import *
+from szurubooru_client.models import *
 import time, sys
 from loguru import logger
 import hashlib
@@ -144,7 +146,7 @@ def test_creating_posts(client):
 
     logger.info("Testing temporary upload")
     token = client.upload_temporary_file("../folly4.jpg")
-    folly4 = client.create_post(token=token, tags=["maine_coon", "cat", "folly4"],
+    folly4 = client.create_post(upload_token=token, tags=["maine_coon", "cat", "folly4"],
                                 safety=PostSafety.Safe)
 
     logger.info("Querying by anonymous tag")
@@ -281,7 +283,7 @@ def test_comments(client):
 
     try:
         client.rate_comment(comment.id, -2)
-    except SzuruPyClientError:
+    except SzuruClientError:
         assert True
     else:
         assert False
