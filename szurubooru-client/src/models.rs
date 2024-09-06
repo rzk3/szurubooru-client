@@ -438,6 +438,8 @@ pub struct PostResource {
     #[serde(rename = "checksumMD5")]
     /// The MD5 file checksum
     pub checksum_md5: Option<String>,
+    /// The size of the file
+    pub file_size: Option<u64>,
     /// The original width of the post content.
     pub canvas_width: Option<u32>,
     /// The original height of the post content.
@@ -484,7 +486,7 @@ pub struct PostResource {
     /// useful for `<video>` tags for instance
     pub mime_type: Option<String>,
     /// All the comments on the post
-    pub comment: Option<Vec<CommentResource>>,
+    pub comments: Option<Vec<CommentResource>>,
     /// The pools in which the post is a member
     pub pools: Option<Vec<PoolResource>>,
 }
@@ -1657,7 +1659,9 @@ impl AroundPostResult {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{GlobalInfo, GlobalInfoConfig, SnapshotResource, TagCategoryResource};
+    use crate::models::{
+        GlobalInfo, GlobalInfoConfig, PostResource, SnapshotResource, TagCategoryResource,
+    };
     use chrono::Datelike;
 
     #[test]
@@ -1727,6 +1731,67 @@ mod tests {
         let tag_cat = serde_json::from_str::<TagCategoryResource>(input_str)
             .expect("Unable to parse tag category string");
         assert_eq!(tag_cat.name, Some("default".to_string()));
+    }
+
+    #[test]
+    fn test_parse_post() {
+        let input_str = r#"
+        {
+          "id": 1,
+          "version": 1,
+          "creationTime": "2024-08-10T20:00:36.540774Z",
+          "lastEditTime": null,
+          "safety": "safe",
+          "source": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Maine_Coon_cat_by_Tomitheos.JPG/225px-Maine_Coon_cat_by_Tomitheos.JPG",
+          "type": "image",
+          "mimeType": "image/jpeg",
+          "checksum": "1c0a8a30909183f4340081ae7c3b9b0d76fcfa8a",
+          "checksumMD5": "4e5915ba12d3e31ea63e8d1a4cda8ec7",
+          "fileSize": 21555,
+          "canvasWidth": 225,
+          "canvasHeight": 480,
+          "contentUrl": "data/posts/1_eec1e16c588816e7.jpg",
+          "thumbnailUrl": "data/generated-thumbnails/1_eec1e16c588816e7.jpg",
+          "flags": [],
+          "tags": [
+            {
+              "names": [
+                "cat"
+              ],
+              "category": "default",
+              "usages": 1
+            },
+            {
+              "names": [
+                "maine_coon"
+              ],
+              "category": "default",
+              "usages": 1
+            }
+          ],
+          "relations": [],
+          "user": {
+            "name": "integration_user",
+            "avatarUrl": "https://gravatar.com/avatar/6ab25d2babacc114ca560bff7c264d08?d=retro&s=300"
+          },
+          "score": 0,
+          "ownScore": 0,
+          "ownFavorite": false,
+          "tagCount": 2,
+          "favoriteCount": 0,
+          "commentCount": 0,
+          "noteCount": 0,
+          "relationCount": 0,
+          "featureCount": 0,
+          "lastFeatureTime": null,
+          "favoritedBy": [],
+          "hasCustomThumbnail": false,
+          "notes": [],
+          "comments": [],
+          "pools": []
+        }
+        "#;
+        serde_json::from_str::<PostResource>(input_str).expect("Could not parse post resource");
     }
 
     #[test]
