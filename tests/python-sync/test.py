@@ -336,8 +336,14 @@ def test_downloads(client):
     f3_hasher = hashlib.new("sha1")
 
     with open("../folly3.jpg", "rb") as f:
-        while (byte := f.read(1)):
-            f3_hasher.update(byte)
+        #while (byte := f.read(1)):
+        #    f3_hasher.update(byte)
+        while True:
+            byte = f.read(1)
+            if len(byte):
+                f3_hasher.update(byte)
+            else:
+                break
 
     f3_post = client.list_posts([anonymous_token("folly3")]).results[0]
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -347,8 +353,14 @@ def test_downloads(client):
         client.download_image_to_path(f3_post.id, fname)
         dl_hasher = hashlib.new("sha1")
         with open(fname, "rb") as f:
-            while (byte := f.read(1)):
-             dl_hasher.update(byte)
+            #while (byte := f.read(1)):
+            # dl_hasher.update(byte)
+            while True:
+                byte = f.read(1)
+                if len(byte):
+                    dl_hasher.update(byte)
+                else:
+                    break
 
     assert f3_hasher.hexdigest() == dl_hasher.hexdigest()
 
