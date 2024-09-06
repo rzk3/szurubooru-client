@@ -1,3 +1,9 @@
+## v0.6.1 (2024-09-06)
+
+### Fix
+
+- **tokens**: fixing typesafe named tokens
+
 ## v0.6.0 (2024-09-05)
 
 ### Feat
