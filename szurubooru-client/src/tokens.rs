@@ -2,6 +2,7 @@
 //! warned that the types here help with the Type safety for the Tag names only. It does
 //! not guarantee that a given API endpoint will support the given tag.
 
+#[cfg(feature = "python")]
 use crate::models::{PostSafety, PostType, SnapshotOperationType, SnapshotResourceType, UserRank};
 #[cfg(feature = "python")]
 use pyo3::{exceptions::PyValueError, prelude::*};
