@@ -229,6 +229,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Cargo publish
-        run: cargo publish --token ${CRATES_TOKEN}
+        run: cargo publish -p szurubooru-client --token ${CRATES_TOKEN}
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
