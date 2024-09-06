@@ -1,3 +1,9 @@
+## v0.6.0 (2024-09-05)
+
+### Feat
+
+- **pyproject_toml**: enabling python 3.7 support so this will work on my raspberry pi
+
 ## v0.5.0 (2024-09-05)
 
 ### Feat
