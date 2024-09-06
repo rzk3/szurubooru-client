@@ -14,13 +14,10 @@ repos:
         - id: fmt
         - id: cargo-check
           stages: [pre-push]
-          args: [-F, python]
         - id: build
           stages: [pre-push]
-          args: [-F, python]
         - id: test
           stages: [pre-push]
-          args: [-F, python]
 -   repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.4.0
     hooks:
