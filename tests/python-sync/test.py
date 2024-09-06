@@ -157,6 +157,10 @@ def test_creating_posts(client):
     cat_posts = client.list_posts(query=[named_token(PostNamedToken.Tag, "maine_coon")])
     assert len(cat_posts.results) == 4
 
+    logger.info("Querying using typesafe types")
+    cat_posts = client.list_posts(query=[named_token(PostNamedToken.Safety, PostSafety.Safe)])
+    assert len(cat_posts.results) == 4
+
     logger.info("Testing pagination")
     cat_posts = client.list_posts(limit=1)
     assert cat_posts.total == 4
