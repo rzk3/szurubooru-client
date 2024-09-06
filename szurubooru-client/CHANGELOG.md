@@ -1,3 +1,13 @@
+## v0.6.2 (2024-09-06)
+
+### Fix
+
+- **models_rs**: adding the missing field fileSize to the post resource
+
+### Refactor
+
+- **tokens_rs**: adding conditional compilation for an import
+
 ## v0.6.1 (2024-09-06)
 
 ### Fix
