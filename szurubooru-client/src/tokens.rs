@@ -2,6 +2,7 @@
 //! warned that the types here help with the Type safety for the Tag names only. It does
 //! not guarantee that a given API endpoint will support the given tag.
 
+use crate::models::{PostSafety, PostType, SnapshotOperationType, SnapshotResourceType, UserRank};
 #[cfg(feature = "python")]
 use pyo3::{exceptions::PyValueError, prelude::*};
 use std::fmt::Display;
@@ -269,6 +270,16 @@ impl QueryToken {
     pub fn token_py(key: &Bound<'_, PyAny>, value: &Bound<'_, PyAny>) -> PyResult<Self> {
         let value = if let Ok(value) = value.extract::<u32>() {
             value.to_string()
+        } else if let Ok(tv) = value.extract::<PostSafety>() {
+            tv.as_ref().to_string()
+        } else if let Ok(tv) = value.extract::<PostType>() {
+            tv.as_ref().to_string()
+        } else if let Ok(tv) = value.extract::<UserRank>() {
+            tv.as_ref().to_string()
+        } else if let Ok(tv) = value.extract::<SnapshotOperationType>() {
+            tv.as_ref().to_string()
+        } else if let Ok(tv) = value.extract::<SnapshotResourceType>() {
+            tv.as_ref().to_string()
         } else {
             value.extract::<String>()?
         };

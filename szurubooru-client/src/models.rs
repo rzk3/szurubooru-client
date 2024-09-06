@@ -326,6 +326,7 @@ impl TagSibling {
     all(feature = "python"),
     pyclass(eq, eq_int, module = "szurubooru_client.models")
 )]
+#[strum(serialize_all = "camelCase")]
 #[serde(rename_all = "camelCase")]
 /// The type of post
 pub enum PostType {
@@ -352,6 +353,7 @@ pub enum PostType {
     all(feature = "python"),
     pyclass(eq, eq_int, module = "szurubooru_client.models")
 )]
+#[strum(serialize_all = "camelCase")]
 #[serde(rename_all = "camelCase")]
 /// How SFW/NSFW the post is
 pub enum PostSafety {
@@ -648,11 +650,12 @@ impl NoteResource {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, AsRefStr, Eq, PartialEq)]
 #[cfg_attr(
     all(feature = "python"),
     pyclass(eq, eq_int, module = "szurubooru_client.models")
 )]
+#[strum(serialize_all = "camelCase")]
 #[serde(rename_all = "camelCase")]
 /// The Rank of a given User
 pub enum UserRank {
@@ -668,11 +671,12 @@ pub enum UserRank {
     Administrator,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, AsRefStr, Eq, PartialEq)]
 #[cfg_attr(
     all(feature = "python"),
     pyclass(eq, eq_int, module = "szurubooru_client.models")
 )]
+#[strum(serialize_all = "camelCase")]
 #[serde(rename_all = "camelCase")]
 /// The kind of User Avatar
 pub enum UserAvatarStyle {
@@ -1358,11 +1362,12 @@ pub struct CreateUpdateComment {
     pub post_id: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, AsRefStr, Eq, PartialEq)]
 #[cfg_attr(
     all(feature = "python"),
     pyclass(eq, eq_int, module = "szurubooru_client.models")
 )]
+#[strum(serialize_all = "camelCase")]
 #[serde(rename_all = "camelCase")]
 /// The kind of snapshot that has been recorded
 pub enum SnapshotOperationType {
@@ -1376,11 +1381,12 @@ pub enum SnapshotOperationType {
     Merged,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, AsRefStr, Eq, PartialEq)]
 #[cfg_attr(
     all(feature = "python"),
     pyclass(eq, eq_int, module = "szurubooru_client.models")
 )]
+#[strum(serialize_all = "camelCase")]
 #[serde(rename_all = "camelCase")]
 /// The kind of resource described by this snapshot
 pub enum SnapshotResourceType {
