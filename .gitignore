@@ -9,3 +9,4 @@ szurubooru-integration-test/szurubooru/server/*
 *.so
 *.pyc
 /docs/_build/**
+.python-version

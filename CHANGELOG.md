@@ -1,3 +1,9 @@
+## v0.7.0 (2025-03-23)
+
+### Feat
+
+- **models**: Test fixes for notes using f32
+
 ## v0.6.2 (2024-09-06)
 
 ### Fix
