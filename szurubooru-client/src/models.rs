@@ -5,6 +5,7 @@
 //! See [here](https://github.com/rr-/szurubooru/blob/master/doc/API.md#field-selecting) for
 //! more information.
 
+use std::cmp::Ordering;
 use crate::errors::SzurubooruClientError;
 use chrono::{DateTime, Utc};
 use derive_builder::Builder;
@@ -625,7 +626,7 @@ pub struct RateResource {
     pub score: i8,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(
     all(feature = "python"),
     pyclass(get_all, module = "szurubooru_client.models")
@@ -637,10 +638,23 @@ pub struct NoteResource {
     /// For example, `[[0,0],[0,1],[1,1],[1,0]]` will draw the annotation on the whole post,
     /// whereas `[[0,0],[0,0.5],[0.5,0.5],[0.5,0]]` will draw it inside the post's upper left
     /// quarter
-    pub polygon: Vec<Vec<u8>>,
+    pub polygon: Vec<Vec<f32>>,
     /// The annotation text, in Markdown format
     pub text: String,
 }
+
+impl PartialEq for NoteResource {
+    fn eq(&self, other: &Self) -> bool {
+        self.text == other.text &&
+            self.polygon.len() == other.polygon.len() &&
+            self.polygon.iter().zip(other.polygon.iter()).all(|(a, b)| {
+                a.len() == b.len() &&
+                    a.iter().zip(b.iter()).all(|(a, b)| a.total_cmp(b) == Ordering::Equal)
+            })
+    }
+}
+
+impl Eq for NoteResource {}
 
 #[cfg(feature = "python")]
 #[cfg_attr(all(feature = "python"), pymethods)]
