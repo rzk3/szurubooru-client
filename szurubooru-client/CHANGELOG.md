@@ -1,3 +1,9 @@
+## v0.7.1 (2025-03-23)
+
+### Fix
+
+- **cargo**: bumping pyo3 version
+
 ## v0.7.0 (2025-03-23)
 
 ### Feat
