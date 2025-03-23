@@ -21,7 +21,6 @@ services:
       #POSTGRES_DB: defaults to same as POSTGRES_USER
       #POSTGRES_PORT: 5432
       #LOG_SQL: 0 (1 for verbose SQL logs)
-      THREADS:
     volumes:
       - "sz-data:/data"
       - "./config.yaml:/opt/app/config.yaml"
