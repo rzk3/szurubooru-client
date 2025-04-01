@@ -729,7 +729,11 @@ impl<'a> SzurubooruRequest<'a> {
 
         let metadata_str =
             serde_json::to_string(cupost).map_err(SzurubooruClientError::JSONSerializationError)?;
-        let metadata_part = Part::text(metadata_str);
+
+        let mut headers = HeaderMap::new();
+        headers.append("content-type", "application/json".parse().unwrap());
+        let metadata_part = Part::text(metadata_str)
+            .headers(headers);
 
         let mut form = Form::new().part("metadata", metadata_part);
 
