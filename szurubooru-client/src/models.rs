@@ -146,7 +146,7 @@ pub struct ResourceVersion {
 /// A single tag. Tags are used to let users search for posts.
 pub struct TagResource {
     /// resource version. See [versioning](ResourceVersion)
-    pub version: u32,
+    pub version: DateTime<Utc>,
     /// a list of tag names (aliases). Tagging a post with any name will automatically assign
     /// the first name from this list.
     pub names: Option<Vec<String>>,
@@ -202,7 +202,7 @@ pub struct CreateUpdateTag {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
     /// resource version. See [versioning](ResourceVersion)
-    pub version: Option<u32>,
+    pub version: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[builder(default)]
     /// Tag names and aliases, must match `tag_name_regex` from the server's configuration
