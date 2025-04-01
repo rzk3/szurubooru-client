@@ -420,7 +420,7 @@ pub(crate) struct PostId {
 /// A post resource
 pub struct PostResource {
     /// Resource version. See [versioning](ResourceVersion)
-    pub version: Option<u32>,
+    pub version: Option<DateTime<Utc>>,
     /// The post identifier
     pub id: Option<u32>,
     /// Time the post was created
@@ -545,7 +545,7 @@ pub struct CreateUpdatePost {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Resource version. See [versioning](ResourceVersion)
     #[builder(default)]
-    pub version: Option<u32>,
+    pub version: Option<DateTime<Utc>>,
     /// Tags to use for this post. If specified tags do not exist yet, they will be automatically
     /// created. Tags created automatically have no implications, no suggestions, one name and
     /// their category is set to the first tag category found
