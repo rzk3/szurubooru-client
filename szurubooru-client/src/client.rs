@@ -3,6 +3,7 @@
 use crate::models::WithBaseURL;
 use crate::{errors::*, models::*, tokens::*};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
+use chrono::{DateTime, Utc};
 use futures_util::TryStreamExt;
 use reqwest::header::CONTENT_TYPE;
 use reqwest::{
@@ -516,7 +517,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Deletes existing tag category. The tag category to be deleted must have no usages.
-    pub async fn delete_tag_category<T>(&self, name: T, version: u32) -> SzurubooruResult<()>
+    pub async fn delete_tag_category<T>(&self, name: T, version: DateTime<Utc>) -> SzurubooruResult<()>
     where
         T: AsRef<str> + Display,
     {
@@ -593,7 +594,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Deletes existing tag. The tag to be deleted must have no usages.
-    pub async fn delete_tag<T>(&self, name: T, version: u32) -> SzurubooruResult<()>
+    pub async fn delete_tag<T>(&self, name: T, version: DateTime<Utc>) -> SzurubooruResult<()>
     where
         T: AsRef<str> + Display,
     {
@@ -1131,7 +1132,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Deletes existing post. Related posts and tags are kept.
-    pub async fn delete_post(&self, post_id: u32, version: u32) -> SzurubooruResult<()> {
+    pub async fn delete_post(&self, post_id: u32, version: DateTime<Utc>) -> SzurubooruResult<()> {
         let path = format!("/api/post/{post_id}");
         let version_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
@@ -1253,7 +1254,7 @@ impl<'a> SzurubooruRequest<'a> {
     pub async fn delete_pool_category<T>(
         &self,
         category_name: T,
-        version: u32,
+        version: DateTime<Utc>,
     ) -> SzurubooruResult<()>
     where
         T: AsRef<str> + Display,
@@ -1334,7 +1335,7 @@ impl<'a> SzurubooruRequest<'a> {
 
     /// Deletes existing pool. All posts in the pool will only have their relation to the pool
     /// removed.
-    pub async fn delete_pool(&self, pool_id: u32, version: u32) -> SzurubooruResult<()> {
+    pub async fn delete_pool(&self, pool_id: u32, version: DateTime<Utc>) -> SzurubooruResult<()> {
         let path = format!("/api/pool/{pool_id}");
         let version_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
@@ -1388,7 +1389,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Deletes existing comment
-    pub async fn delete_comment(&self, comment_id: u32, version: u32) -> SzurubooruResult<()> {
+    pub async fn delete_comment(&self, comment_id: u32, version: DateTime<Utc>) -> SzurubooruResult<()> {
         let path = format!("/api/comment/{comment_id}");
         let version_obj = ResourceVersion { version };
         self.do_request::<Value, _, _>(Method::DELETE, &path, None, Some(&version_obj))
@@ -1594,7 +1595,7 @@ impl<'a> SzurubooruRequest<'a> {
     }
 
     /// Deletes existing user
-    pub async fn delete_user<T>(&self, name: T, version: u32) -> SzurubooruResult<()>
+    pub async fn delete_user<T>(&self, name: T, version: DateTime<Utc>) -> SzurubooruResult<()>
     where
         T: AsRef<str> + Display,
     {
@@ -1660,7 +1661,7 @@ impl<'a> SzurubooruRequest<'a> {
         &self,
         name: T,
         token: T,
-        version: u32,
+        version: DateTime<Utc>,
     ) -> SzurubooruResult<()>
     where
         T: AsRef<str> + Display,

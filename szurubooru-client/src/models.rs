@@ -134,7 +134,7 @@ impl MicroTagResource {
 /// encouraged to notify the user about the situation.
 pub struct ResourceVersion {
     /// The version itself
-    pub version: u32,
+    pub version: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
